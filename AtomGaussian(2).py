@@ -8,10 +8,10 @@ from rdkit import Chem
 
 class AtomGaussian(): # give a system which incoulde the initial condition
     
-    def __init__(self, centre= np.array([0.0, 0.0, 0.0]), alpha=0.0, atom_volume=0, Gaussian_weight=0,number=0):
+    def __init__(self, centre= np.array([0.0, 0.0, 0.0]), alpha=0.0, volume=0, Gaussian_weight=0,number=0):
         self.centre= centre
         self.alpha = alpha  #Gaussion paprameter
-        self.atom_volume = atom_volume
+        self.volume = volume
         self.w = Gaussian_weight  
         self.n = number # number of parents gaussians for this guassian function, 
                         # used for recording overlap gaussian information
@@ -39,7 +39,7 @@ class atomIntersection():
         
         scale = np.pi/(self.c.alpha)
         
-        self.c.atom_volume = self.c.w * scale ** (3/2)
+        self.c.volume = self.c.w * scale ** (3/2)
         self.c.n = self.a.n + self.b.n
         
         return  self.c
@@ -59,15 +59,6 @@ class GaussianVolume(AtomGaussian):
         self.gaussians = [AtomGaussian() for i in range(0,N)]
         self.childOverlaps = np.empty(N, dtype=object)
         self.levels = np.empty(N, dtype=object)
-        
-        # from AtomGaussian
-        '''
-        self.alpha = np.empty((N), dtype=object)
-        self.centre = np.empty((N,3), dtype=object)
-        self.atom_volume = np.empty((N), dtype=object)
-        self.w = np.empty((N), dtype=object)
-        self.n = np.empty((N), dtype=object)
-        '''
                     
     def GAlpha(self,atomicnumber): #returns the Alpha value of the atom
         
@@ -138,8 +129,8 @@ N=10   # !!!N would need to redefine inside the function Molecue_volume
 gv = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
                  rotation=np.array([0.0, 0.0, 0.0]), N=N)
 
-#gv.levels.append(N); 
-all_guassian=[]
+#gv.levels.append(N)
+
 def Molecue_volume(gv):
 
     # !!!this part need redefine after import RDkit or openbabel
@@ -158,13 +149,13 @@ def Molecue_volume(gv):
         gv.gaussians[atomIndex].centre = atom_position[atomIndex,:]
         gv.gaussians[atomIndex].alpha = alphavalue
         gv.gaussians[atomIndex].w = guassian_weight 
-        gv.gaussians[atomIndex].atom_volume = (4.0 * np.pi/3.0) * radius_VDW **3 # volume of the atom
+        gv.gaussians[atomIndex].volume = (4.0 * np.pi/3.0) * radius_VDW **3 # volume of the atom
         gv.gaussians[atomIndex].n = 1 
     
      
         '''Update volume and centroid of the molecue'''
-        gv.volume = gv.volume + gv.gaussians[atomIndex].atom_volume
-        gv.centroid = gv.centroid + gv.gaussians[atomIndex].atom_volume*gv.gaussians[atomIndex].centre
+        gv.volume = gv.volume + gv.gaussians[atomIndex].volume
+        gv.centroid = gv.centroid + gv.gaussians[atomIndex].volume*gv.gaussians[atomIndex].centre
     
         i=0
         temp_index =[]
@@ -177,10 +168,10 @@ def Molecue_volume(gv):
           
      
             EPS = 0.003
-            if ga.atom_volume / (gv.gaussians[i].atom_volume + gv.gaussians[atomIndex].atom_volume - ga.atom_volume) > EPS:
+            if ga.volume / (gv.gaussians[i].volume + gv.gaussians[atomIndex].volume - ga.volume) > EPS:
         
-                gv.volume = gv.volume - ga.atom_volume
-                gv.centroid = gv.centroid - ga.atom_volume*ga.centre
+                gv.volume = gv.volume - ga.volume
+                gv.centroid = gv.centroid - ga.volume*ga.centre
                 
                 temp_index.append(i)
                 current_index.append([atomIndex,i])
@@ -222,14 +213,14 @@ def Molecue_volume(gv):
                     ga = atomIntersection(a = old_overlap, b=added_atom).overlap_gaussian()
                     EPS = 0.003
                     
-                    if ga.atom_volume / (old_overlap.atom_volume + added_atom.atom_volume - ga.atom_volume) > EPS:
+                    if ga.volume / (old_overlap.volume + added_atom.volume - ga.volume) > EPS:
                         
                         if level%2 ==0:# odd number overlaps give positive contribution
-                            gv.volume = gv.volume + ga.atom_volume
-                            gv.centroid = gv.centroid + ga.atom_volume*ga.centre
+                            gv.volume = gv.volume + ga.volume
+                            gv.centroid = gv.centroid + ga.volume*ga.centre
                         else:
-                            gv.volume = gv.volume - ga.atom_volume
-                            gv.centroid = gv.centroid - ga.atom_volume*ga.centre
+                            gv.volume = gv.volume - ga.volume
+                            gv.centroid = gv.centroid - ga.volume*ga.centre
                              
                         next_index.append(current_index[i][:L]+[large_index,small_index])
                         next_gaussian.append(ga)
@@ -270,19 +261,19 @@ def initOrientation(gv):
         i.centre -=gv.centroid
         if i.n % 2 == 0: # for even number of atom, negative contribution
         
-            mass_matrix[0][0] -= i.volume * i.center[0] * i.center[0]
-            mass_matrix[0][1] -= i.volume * i.center[0] * i.center[1]
-            mass_matrix[0][2] -= i.volume * i.center[0] * i.center[2]
-            mass_matrix[1][1] -= i.volume * i.center[1] * i.center[1]
-            mass_matrix[1][2] -= i.volume * i.center[1] * i.center[2]
-            mass_matrix[2][2] -= i.volume * i.center[2] * i.center[2]
+            mass_matrix[0][0] -= i.volume * i.centre[0] * i.centre[0]
+            mass_matrix[0][1] -= i.volume * i.centre[0] * i.centre[1]
+            mass_matrix[0][2] -= i.volume * i.centre[0] * i.centre[2]
+            mass_matrix[1][1] -= i.volume * i.centre[1] * i.centre[1]
+            mass_matrix[1][2] -= i.volume * i.centre[1] * i.centre[2]
+            mass_matrix[2][2] -= i.volume * i.centre[2] * i.centre[2]
         else:
-            mass_matrix[0][0] += i.volume * i.center[0] * i.center[0]
-            mass_matrix[0][1] += i.volume * i.center[0] * i.center[1]
-            mass_matrix[0][2] += i.volume * i.center[0] * i.center[2]
-            mass_matrix[1][1] += i.volume * i.center[1] * i.center[1]
-            mass_matrix[1][2] += i.volume * i.center[1] * i.center[2]
-            mass_matrix[2][2] += i.volume * i.center[2] * i.center[2]
+            mass_matrix[0][0] += i.volume * i.centre[0] * i.centre[0]
+            mass_matrix[0][1] += i.volume * i.centre[0] * i.centre[1]
+            mass_matrix[0][2] += i.volume * i.centre[0] * i.centre[2]
+            mass_matrix[1][1] += i.volume * i.centre[1] * i.centre[1]
+            mass_matrix[1][2] += i.volume * i.centre[1] * i.centre[2]
+            mass_matrix[2][2] += i.volume * i.centre[2] * i.centre[2]
         
     # set lower triangle       	
     mass_matrix[1][0] = mass_matrix[0][1]
@@ -306,6 +297,7 @@ def initOrientation(gv):
 
 volume,current_index=  Molecue_volume(gv)
 print(volume)    
+after_rotation = initOrientation(gv)
 
             
         
