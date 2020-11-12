@@ -13,10 +13,9 @@ class AtomGaussian(): # give a system which incoulde the initial condition
         self.alpha = alpha  #Gaussion paprameter
         self.atom_volume = atom_volume
         self.w = Gaussian_weight  
-        self.n = number
-    
-    
-    
+        self.n = number # number of parents gaussians for this guassian function, 
+                        # used for recording overlap gaussian information
+                        
 class atomIntersection():
     
     def __init__(self,a = AtomGaussian(),b = AtomGaussian()):
@@ -41,6 +40,7 @@ class atomIntersection():
         scale = np.pi/(self.c.alpha)
         
         self.c.atom_volume = self.c.w * scale ** (3/2)
+        self.c.n = self.a.n + self.b.n
         
         return  self.c
     
@@ -56,20 +56,19 @@ class GaussianVolume(AtomGaussian):
         self.overlap = overlap
         self.centroid = centroid
         self.rotation = rotation
-        self.gaussians = np.empty((N, 7), dtype=object)
+        self.gaussians = [AtomGaussian() for i in range(0,N)]
         self.childOverlaps = np.empty(N, dtype=object)
         self.levels = np.empty(N, dtype=object)
         
         # from AtomGaussian
+        '''
         self.alpha = np.empty((N), dtype=object)
         self.centre = np.empty((N,3), dtype=object)
         self.atom_volume = np.empty((N), dtype=object)
         self.w = np.empty((N), dtype=object)
         self.n = np.empty((N), dtype=object)
-        
-        
-        
-        
+        '''
+                    
     def GAlpha(self,atomicnumber): #returns the Alpha value of the atom
         
             switcher={
@@ -135,132 +134,183 @@ class GaussianVolume(AtomGaussian):
              }
             return switcher.get(atomicnumber,1.074661303) 
 #%%
-N=200
+N=10   # !!!N would need to redefine inside the function Molecue_volume
 gv = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
                  rotation=np.array([0.0, 0.0, 0.0]), N=N)
 
 #gv.levels.append(N); 
+all_guassian=[]
+def Molecue_volume(gv):
 
-atomIndex = 0
-vecIndex = N
-alphavalue = 1
-atom_position = np.random.random(size=(N, 3))
-radius_VDW = 1.1
-alphavalue = 2.344/(radius_VDW**2)
-guassian_weight = 2.70
-
-
-#def Molecue_volume:
-current_index=[]
-pair_index =[] #keep all the first level overlap information inside these list
-current_gaussian = []
-while atomIndex < N:
-    gv.centre[atomIndex] = atom_position[atomIndex,:]
-    gv.alpha[atomIndex] = alphavalue
-    gv.w[atomIndex] = guassian_weight 
-    gv.atom_volume[atomIndex] = (4.0 * np.pi/3.0) * radius_VDW **3 # volume of the atom
-    gv.n[atomIndex] = 1 # number
-
-
-
-    '''Update volume and centroid of the molecue'''
-    gv.volume = gv.volume + gv.atom_volume[atomIndex]
-    gv.centroid = gv.centroid + gv.atom_volume[atomIndex]*gv.centre[atomIndex]
-
-
-    i=0
-    temp_index =[]
-    while i < atomIndex:
-    
-        atom1 = AtomGaussian(centre= gv.centre[i], alpha=gv.alpha[i], atom_volume=gv.atom_volume[i], 
-                             Gaussian_weight=gv.w[i], number=gv.n[i])
-    
-        atom2= AtomGaussian(centre= gv.centre[atomIndex], alpha=gv.alpha[atomIndex],
-                            atom_volume=gv.atom_volume[atomIndex], Gaussian_weight=gv.w[atomIndex],
-                            number=gv.n[atomIndex])
-    
-        ga = atomIntersection(a = atom1, b=atom2).overlap_gaussian()
-      
- 
-        EPS = 0.003
-        if ga.atom_volume / (gv.atom_volume[i] + gv.atom_volume[atomIndex] - ga.atom_volume) > EPS:
-    
-            gv.volume = gv.volume - ga.atom_volume
-            gv.centroid = gv.centroid - ga.atom_volume*ga.centre
-            
-            temp_index.append(i)
-            current_index.append([atomIndex,i])
-            current_gaussian.append(ga)
-    
-        i+=1
-    temp_index.reverse()
-    pair_index.append(temp_index)
-    atomIndex += 1
-
-current_index.reverse()
-current_gaussian.reverse()
-    #return current_gaussian, current_index
-#%%
-level = 2
-final_level = 4 
-next_index = [] # a list that stores the overlaps index of next level
-next_gaussian=[]
-while level < final_level:
-    
-    i=0
-    j=1
-    L=level-1 # since python index start from zero
+    # !!!this part need redefine after import RDkit or openbabel
+    atomIndex = 0
+    #vecIndex = N
+    atom_position = np.random.random(size=(N, 3))*5
+    radius_VDW = 0.8
+    alphavalue = 2.344/(radius_VDW**2)
+    guassian_weight = 2.70
         
-    while i < len(current_index) - 1:
+    current_index=[] # keep the current level overlap information inside 
+                     # with a flat shape(all list have the same length)
+    pair_index =[] #keep all the second level overlap information inside these list with a 'triangle shape'
+    current_gaussian = []
+    while atomIndex < N:
+        gv.gaussians[atomIndex].centre = atom_position[atomIndex,:]
+        gv.gaussians[atomIndex].alpha = alphavalue
+        gv.gaussians[atomIndex].w = guassian_weight 
+        gv.gaussians[atomIndex].atom_volume = (4.0 * np.pi/3.0) * radius_VDW **3 # volume of the atom
+        gv.gaussians[atomIndex].n = 1 
+    
+     
+        '''Update volume and centroid of the molecue'''
+        gv.volume = gv.volume + gv.gaussians[atomIndex].atom_volume
+        gv.centroid = gv.centroid + gv.gaussians[atomIndex].atom_volume*gv.gaussians[atomIndex].centre
+    
+        i=0
+        temp_index =[]
+        while i < atomIndex:
         
-        while current_index[i][:L] == current_index[j][:L]:
+            atom1 = gv.gaussians[i]
+            atom2= gv.gaussians[atomIndex]
             
-            small_index = current_index[j][L]
-            large_index = current_index[i][L]
-            
-            if small_index in pair_index[large_index]:
-                               
-                old_overlap= current_gaussian[i]
-                added_atom= AtomGaussian(centre= gv.centre[small_index], alpha=gv.alpha[small_index],
-                             atom_volume=gv.atom_volume[small_index], Gaussian_weight=gv.w[small_index],
-                             number=gv.n[small_index])
+            ga = atomIntersection(a = atom1, b=atom2).overlap_gaussian()
+          
+     
+            EPS = 0.003
+            if ga.atom_volume / (gv.gaussians[i].atom_volume + gv.gaussians[atomIndex].atom_volume - ga.atom_volume) > EPS:
         
-                ga = atomIntersection(a = old_overlap, b=added_atom).overlap_gaussian()
-                EPS = 0.003
-                '''
-                if ga.atom_volume / (old_overlap.atom_volume + added_atom.atom_volume - ga.atom_volume) > EPS:
+                gv.volume = gv.volume - ga.atom_volume
+                gv.centroid = gv.centroid - ga.atom_volume*ga.centre
+                
+                temp_index.append(i)
+                current_index.append([atomIndex,i])
+                current_gaussian.append(ga) # this could combined with gv.gaussians leter
+                gv.gaussians.append(ga)
+                
         
-                    gv.volume = gv.volume - (-1)**L*ga.atom_volume
-                    gv.centroid = gv.centroid - (-1)**L*ga.atom_volume*ga.centre
-                    '''
+            i+=1
+        temp_index.reverse()
+        pair_index.append(temp_index)
+        atomIndex += 1
+    
+    current_index.reverse()
+    current_gaussian.reverse()
+        
+    
+    level = 2
+    final_level = 6 
+    next_index = [] # a list that stores the overlaps index of next level
+    next_gaussian=[]
+    while level < final_level:
+        
+        i=0
+        j=1
+        L=level-1 # since python index start from zero
             
-                next_index.append(current_index[i][:L]+[large_index,small_index])
+        while i < len(current_index) - 1:
+            
+            while current_index[i][:L] == current_index[j][:L]:
+                
+                small_index = current_index[j][L]
+                large_index = current_index[i][L]
+                
+                if small_index in pair_index[large_index]:
+                                   
+                    old_overlap= current_gaussian[i]
+                    added_atom= gv.gaussians[small_index]
+            
+                    ga = atomIntersection(a = old_overlap, b=added_atom).overlap_gaussian()
+                    EPS = 0.003
                     
-                next_gaussian.append(ga)
-                    
-            if j < len(current_index)-1: 
-                j+=1
+                    if ga.atom_volume / (old_overlap.atom_volume + added_atom.atom_volume - ga.atom_volume) > EPS:
+                        
+                        if level%2 ==0:# odd number overlaps give positive contribution
+                            gv.volume = gv.volume + ga.atom_volume
+                            gv.centroid = gv.centroid + ga.atom_volume*ga.centre
+                        else:
+                            gv.volume = gv.volume - ga.atom_volume
+                            gv.centroid = gv.centroid - ga.atom_volume*ga.centre
+                             
+                        next_index.append(current_index[i][:L]+[large_index,small_index])
+                        next_gaussian.append(ga)
+                        gv.gaussians.append(ga)
+                        
+                        
+                if j < len(current_index)-1:  #protect the code run to index error
+                    j+=1
+                else:
+                    i+=1
+                    break
+                
             else:
                 i+=1
-                break
+                j=i+1
+        
+        
+        if len(next_index) == 0:
+            print('no overlap at level_'+ str(L+2))
             
         else:
-            i+=1
-            j=i+1
+            current_index = next_index
+            current_gaussian = next_gaussian
+            print('number of overlaps at level_'+str(L+2) +'= ' + str(len(current_index)))
+            
+        next_index = [] 
+        next_gaussian=[]
+        level +=1
     
+    gv.centroid/=gv.volume #normalise the centroid
+    return gv.volume, current_index
+
+#%%
+def initOrientation(gv):
+    mass_matrix = np.zeros(shape=(3,3))
     
-    if len(next_index) == 0:
-        print('no overlap at level_'+ str(L+2))
+    for i in gv.gaussians:
+        i.centre -=gv.centroid
+        if i.n % 2 == 0: # for even number of atom, negative contribution
         
-    else:
-        current_index = next_index
-        current_gaussian = next_gaussian
-        print('number of overlaps at level_'+str(L+2) +'= ' + str(len(current_index)))
+            mass_matrix[0][0] -= i.volume * i.center[0] * i.center[0]
+            mass_matrix[0][1] -= i.volume * i.center[0] * i.center[1]
+            mass_matrix[0][2] -= i.volume * i.center[0] * i.center[2]
+            mass_matrix[1][1] -= i.volume * i.center[1] * i.center[1]
+            mass_matrix[1][2] -= i.volume * i.center[1] * i.center[2]
+            mass_matrix[2][2] -= i.volume * i.center[2] * i.center[2]
+        else:
+            mass_matrix[0][0] += i.volume * i.center[0] * i.center[0]
+            mass_matrix[0][1] += i.volume * i.center[0] * i.center[1]
+            mass_matrix[0][2] += i.volume * i.center[0] * i.center[2]
+            mass_matrix[1][1] += i.volume * i.center[1] * i.center[1]
+            mass_matrix[1][2] += i.volume * i.center[1] * i.center[2]
+            mass_matrix[2][2] += i.volume * i.center[2] * i.center[2]
         
-    next_index = [] 
-    next_gaussian=[]
+    # set lower triangle       	
+    mass_matrix[1][0] = mass_matrix[0][1]
+    mass_matrix[2][0] = mass_matrix[0][2]
+    mass_matrix[2][1] = mass_matrix[1][2]
     
-    level +=1
+    #normalise
+    mass_matrix /= gv.volume
+      
+    gv.rotation, s, vh = np.linalg.svd(mass_matrix)
+        
+    if np.linalg.det(gv.rotation) < 0:
+        gv.rotation[:][2] = - gv.rotation[:][2]
+        
+    for i in gv.gaussians:
+        i.centre = gv.rotation.dot(i.centre)
+              
+    return gv
+
+#%%
+
+volume,current_index=  Molecue_volume(gv)
+print(volume)    
+
+            
+        
+    
+        
             
             
     
