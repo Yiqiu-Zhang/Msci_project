@@ -25,7 +25,7 @@ def atomIntersection(a = AtomGaussian,b = AtomGaussian):
     c.alpha = a.alpha + b.alpha
 
     #centre 
-    c.centre = (a.alpha * a.centre + b.alpha * b.centre)/c.alpha; 
+    c.centre = (a.alpha * a.centre + b.alpha * b.centre)/c.alpha 
     
     #intersection_volume
     d = 0 #The distance squared between two gaussians
@@ -390,6 +390,25 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
 #%%
 gv =  Molecule_volume(gv)
 
+
+            
+        
+        
+        
+        
+                        
+                    
+                            
+                            
+                    
+                    
+            
+        
+    
+    
+    
+        
+        
 
 
                 
