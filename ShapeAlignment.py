@@ -21,7 +21,7 @@ class ShapeAlignment(GaussianVolume):
         self._dGauss = len(gDb.gaussians)
         self._maxSize = self._rGauss * self._dGauss + 1
         self._maxIter = 50
-        self._matrixMap = np.ndarray((3,2))
+        self._matrixMap = [[] for i in range(0,self._rAtom) for j in range(0,self._dAtom)]
         
     def gradientAscent(self,AlignmentInfo):
         
@@ -63,15 +63,15 @@ class ShapeAlignment(GaussianVolume):
                 for j in range(0,self._dAtom):
                     mapIndex = (i * self._dGauss) + j
                     
-                    matIter = self._matrixMap[mapIndex]
-                    if matIter == self._matrixMap[-1]:
+                    
+                    if len(self._matrixMap[mapIndex]) == 0:
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
                         
                         self._matrixMap[mapIndex] = Aij
                         
-                    else:#!!!!
-                        Aij = 0
+                    else:
+                        Aij = self._matrixMap[mapIndex]
                         
                     Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                     Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
@@ -124,15 +124,14 @@ class ShapeAlignment(GaussianVolume):
                  
                 mapIndex = (i*self._dGauss) + j
                  
-                matIter = self._matrixMap[mapIndex]
-                if matIter == self._matrixMap[-1]:
+                if len(self._matrixMap[mapIndex]) == 0:
                         
                     Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
-                        
+                    
                     self._matrixMap[mapIndex] = Aij
-                        
+                    
                 else:
-                    Aij = matIter #????
+                    Aij = self._matrixMap[mapIndex]
                         
                 Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                 Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
@@ -264,15 +263,15 @@ class ShapeAlignment(GaussianVolume):
                     
                     mapIndex = (i * self._dGauss) + j
                     
-                    matIter = self._matrixMap[mapIndex]
-                    if matIter == self._matrixMap[-1]:
+                    if len(self._matrixMap[mapIndex]) == 0:
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
                         
                         self._matrixMap[mapIndex] = Aij
                         
                     else:
-                        Aij = 0
+                        Aij = self._matrixMap[mapIndex]
+
                         
                     Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                     Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
@@ -308,14 +307,14 @@ class ShapeAlignment(GaussianVolume):
                 mapIndex = (i * self._dGauss) + j
                     
                 matIter = self._matrixMap[mapIndex]
-                if matIter == self._matrixMap[-1]:
-                    
+                if len(self._matrixMap[mapIndex]) == 0:
+                        
                     Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
                     
                     self._matrixMap[mapIndex] = Aij
                     
                 else:
-                    Aij = 0
+                    Aij = self._matrixMap[mapIndex]
                     
                 Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                 Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
