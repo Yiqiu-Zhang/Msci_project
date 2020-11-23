@@ -8,40 +8,8 @@ Created on Fri Nov 13 19:43:22 2020
 import numpy as np
 #from openbabel import openbabel
 from rdkit import Chem
-
-class AtomGaussian(): # give a system which incoulde the initial condition
-    
-    def __init__(self, centre= np.array([0.0, 0.0, 0.0]), alpha=0.0, volume=0, Gaussian_weight=0,number=0):
-        self.centre= centre
-        self.alpha = alpha  #Gaussion paprameter
-        self.volume = volume
-        self.weight = Gaussian_weight  
-        self.n = number # number of parents gaussians for this guassian function, 
-                        # used for recording overlap gaussian information
-
-def atomIntersection(a = AtomGaussian,b = AtomGaussian):
-    
-    c = AtomGaussian()
-    c.alpha = a.alpha + b.alpha
-
-    #centre 
-    c.centre = (a.alpha * a.centre + b.alpha * b.centre)/c.alpha 
-    
-    #intersection_volume
-    d = 0 #The distance squared between two gaussians
-    for i in a.centre - b.centre:
-        d+= i**2
-   
-    c.weight = a.weight * b.weight * np.exp(- a.alpha * b.alpha/c.alpha * d)  
-    scale = np.pi/(c.alpha)
-    c.volume = c.weight * scale ** (3/2)
-    
-    # Set the numer of atom of the overlap gaussian
-    c.n = a.n + b.n
-    
-    return  c
-
-#%%
+import AlignmentInfo
+import AtomGaussian
 
 class GaussianVolume(AtomGaussian):
     
@@ -387,6 +355,31 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
     return overlap_volume, processQueue
                     
 
+def getScore(name, Voa, Vra, Vda):
+    
+    if name == 'tanimoto':
+        return Voa/(Vra+Vda-Voa)
+    elif name == 'tversky_ref':
+        return Voa / (0.95*Vra + 0.05*Vda)
+    elif name == 'tversky_db':
+        return Voa/(0.05*Vra+0.95*Vda)
+    
+    return 0.0
+
+def checkVolumes(gRef = GaussianVolume, gDb = GaussianVolume,
+                 res = AlignmentInfo()):
+    
+    if res.overlap > gRef.overlap:
+        res.overlap = gRef.overlap
+        
+    if res.overlap > gDb.overlap:
+        res.overlap = gDb.overlap
+        
+    return 
+
+    
+    
+    
 #%%
 gv =  Molecule_volume(gv)
 

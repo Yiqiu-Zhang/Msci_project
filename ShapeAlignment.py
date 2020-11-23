@@ -184,6 +184,7 @@ class ShapeAlignment(GaussianVolume):
                 
             oldVolume = atomOverlap
             
+            #!!!!
             if np.isnan(xlambda) or np.isnan(oldVolume) or oldVolume == 0:
                 return
             
