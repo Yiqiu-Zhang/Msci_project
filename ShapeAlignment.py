@@ -5,9 +5,9 @@ Created on Tue Nov 17 15:53:39 2020
 @author: THINKPAD
 """
 import numpy as np
-import GaussianVolume
-import AlignmentInfo
-import AtomGaussian
+from AlignmentInfo import AlignmentInfo
+from AtomGaussian import AtomGaussian, atomIntersection
+from GaussianVolume import GaussianVolume, Molecule_volume, Molecule_overlap, initOrientation, getScore, checkVolumes
 
 class ShapeAlignment(GaussianVolume):
     
@@ -23,9 +23,9 @@ class ShapeAlignment(GaussianVolume):
         self._maxIter = 50
         self._matrixMap = [[] for i in range(0,self._rAtom) for j in range(0,self._dAtom)]
         
-    def gradientAscent(self,AlignmentInfo):
+    def gradientAscent(self, rotor):
         
-        rotor = np.zeros(4)
+        
         processQueue=[]
         
         Aij = 0
@@ -63,7 +63,7 @@ class ShapeAlignment(GaussianVolume):
                 for j in range(0,self._dAtom):
                     mapIndex = (i * self._dGauss) + j
                     
-                    
+                    #Sub in the Aij to corresponding location, or calculate& sub in if empty initially
                     if len(self._matrixMap[mapIndex]) == 0:
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
@@ -72,14 +72,16 @@ class ShapeAlignment(GaussianVolume):
                         
                     else:
                         Aij = self._matrixMap[mapIndex]
-                        
+                    
+                    #Calculation of q′Aq, rotor product
                     Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                     Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
                     Aq[2] =  Aij[8] * rotor[0] +  Aij[9] * rotor[1] + Aij[10] * rotor[2] + Aij[11] * rotor[3]
                     Aq[3] = Aij[12] * rotor[0] + Aij[13] * rotor[1] + Aij[14] * rotor[2] + Aij[15] * rotor[3] 
                         
                     qAq = rotor[0] * Aq[0] + rotor[1]*Aq[1] + rotor[2]*Aq[2] + rotor[3]*Aq[3]      
-                        
+                    
+                    #Volume overlap rewritten
                     Vij = Aij[16] * np.exp( -qAq )
                     
                     EPS = 0.03
@@ -87,9 +89,12 @@ class ShapeAlignment(GaussianVolume):
                         
                         atomOverlap += Vij
                         
-                        v2 = 2.0 * Vij
+                        v2 = 2.0 * Vij #simply Vij doubled, for lateral use
+                        
+                        #Lagrange coefficient lambda
                         xlambda -= v2 * qAq
                         
+                        #overGrad calculated, gradient minus since
                         overGrad -= v2 * Aq
                         
                         # overHessian += 2*Vij(2*Aijq'qAij-Aij); (only upper triangular part)
@@ -104,6 +109,7 @@ class ShapeAlignment(GaussianVolume):
                         overHessian[2][3] += v2 * (2.0 * Aq[2]*Aq[3] - Aij[11])
                         overHessian[3][3] += v2 * (2.0 * Aq[3]*Aq[3] - Aij[15])
                         
+                        #loop over child nodes and add to queue
                         d1 = self._gRef.childOverlaps[i]
                         d2 = self._gDb.childOverlaps[j]
                         
@@ -123,7 +129,8 @@ class ShapeAlignment(GaussianVolume):
                 j = item[1]
                  
                 mapIndex = (i*self._dGauss) + j
-                 
+                
+                #Sub in the Aij to corresponding location, or calculate& sub in if empty initially 
                 if len(self._matrixMap[mapIndex]) == 0:
                         
                     Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
@@ -132,7 +139,8 @@ class ShapeAlignment(GaussianVolume):
                     
                 else:
                     Aij = self._matrixMap[mapIndex]
-                        
+                    
+                #rotor product        
                 Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                 Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
                 Aq[2] =  Aij[8] * rotor[0] +  Aij[9] * rotor[1] + Aij[10] * rotor[2] + Aij[11] * rotor[3]
@@ -163,6 +171,7 @@ class ShapeAlignment(GaussianVolume):
                     overHessian[2][3] += v2 * (2.0 * Aq[2]*Aq[3] - Aij[11])
                     overHessian[3][3] += v2 * (2.0 * Aq[3]*Aq[3] - Aij[15])
                     
+                    #loop over child nodes and add to queue
                     d1 = self._gRef.childOverlaps[i]
                     d2 = self._gDb.childOverlaps[j]
                     
@@ -178,25 +187,30 @@ class ShapeAlignment(GaussianVolume):
                             for it1 in d1:        
                                 processQueue.append([it1,j])
                       
-                        
+            
+            #check if the new volume is better than the previously found one
+            #if not quit the loop
             if iterations > 6 and atomOverlap < oldVolume + 0.0001:
-                return
+                break
                 
-            oldVolume = atomOverlap
+            oldVolume = atomOverlap #store latest volume found
             
-            #!!!!
+            #no measurable overlap between two volumes
             if np.isnan(xlambda) or np.isnan(oldVolume) or oldVolume == 0:
-                return
+                break
             
+            #update solution 
             if oldVolume > res.overlap:
                 res.overlap = atomOverlap
                 res.rotor = rotor
                 
                 if  res.overlap/(self.gRef.overlap + self.gDb.overlap - res.overlap)  > 0.99 :
                     
-                    return
+                    break
                     
-            overHessian -= xlambda
+            overHessian -= xlambda #update the gradient and hessian 
+            
+            #fill lower triangular of the hessian matrix
             overHessian[1][0] = overHessian[0][1]
             overHessian[2][0] = overHessian[0][2]
             overHessian[2][1] = overHessian[1][2]
@@ -204,33 +218,35 @@ class ShapeAlignment(GaussianVolume):
             overHessian[3][1] = overHessian[1][3]
             overHessian[3][2] = overHessian[2][3]
             
+            #update gradient to make h
             overGrad[0] -= xlambda * rotor[0]
             overGrad[1] -= xlambda * rotor[1]
             overGrad[2] -= xlambda * rotor[2]
             overGrad[3] -= xlambda * rotor[3]
             
             #line 354
-            
+            #update gradient based on inverse hessian
             temp = overHessian.dot(overGrad)
             h = overGrad* temp
             
+            #small scaling of the gradient
             h = 1/h*(sum(i**2 for i in overGrad))
             overGrad *= h
             
+            #update rotor based on gradient information
             rotor -= overGrad
             
+            #normalise rotor such that it has unit norm
             nr = np.sqrt(sum(i**2 for i in rotor))
             
             rotor /= nr
             
-             
-        
         return res
     
     def simulatedAnnealing(self):
         
         rotor = np.zeros(4)
-        processQueue=[]
+        processQueue=[] #create a queue to hold the pairs to process
         
         Aij = 0
         Aq = np.zeros(4)
@@ -253,17 +269,21 @@ class ShapeAlignment(GaussianVolume):
         
         while iterations < self._maxIter:
             
+            #reset volume
             atomOverlap = 0
             pharmOverlap = 0 
             iterations += 1
             
+            #temperature of the simulated annealing step
             T = np.sqrt((1.0 + iterations)/dTemperature)
             
+            #create atom-atom overlaps 
             for i in self._rAtom:
                 for j in self._dAtom:
                     
                     mapIndex = (i * self._dGauss) + j
                     
+                    #Sub in the Aij to corresponding location, or calculate& sub in if empty initially
                     if len(self._matrixMap[mapIndex]) == 0:
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
@@ -306,7 +326,8 @@ class ShapeAlignment(GaussianVolume):
                 j = pair[1]
                 
                 mapIndex = (i * self._dGauss) + j
-                    
+                
+                #Sub in the Aij to corresponding location, or calculate& sub in if empty initially    
                 matIter = self._matrixMap[mapIndex]
                 if len(self._matrixMap[mapIndex]) == 0:
                         
@@ -348,6 +369,7 @@ class ShapeAlignment(GaussianVolume):
             
             overlapVol = atomOverlap
             
+            #check if the new volume is better than the previously found one
             if overlapVol < oldVolume:
                 
                 D = np.exp(-np.sqrt(oldVolume - overlapVol))/T
@@ -363,24 +385,28 @@ class ShapeAlignment(GaussianVolume):
                         iterations = self._maxIter
                         
             else:
+                #store latest volume found
                 oldVolume = overlapVol
                 oldRotor = rotor
                 
+                #update best found so far
                 bestRotor = rotor
                 bestVolume = overlapVol
                 sameCount = 0
                 
+                #check if it is better than the best solution found so far
                 if overlapVol > res.overlap:
                     res.overlap = atomOverlap
                     res.rotor = rotor
                     
                     if (res.overlap / (self._gRef.overlap + self._gDb.overlap - res.overlap )) > 0.99:
-                        return
+                        break
                
-            
+            #make random permutation & double range = 0.05		
             ranPermutation = 0.1/T
             rotor = oldRotor - ranPermutation + 2* ranPermutation*np.random.random()
             
+            #normalise rotor such that it has unit norm
             nr = np.sqrt(sum(i**2 for i in rotor))
             rotor /= nr
             
@@ -393,6 +419,7 @@ class ShapeAlignment(GaussianVolume):
                                
     def _updateMatrixMap(self, a= AtomGaussian, b = AtomGaussian):
         
+        #A is a matrix thatsolely depends on the position of the two centers of Gaussians a and b
         A = np.zeros(17)
         
         d = (a.center - b.center)

@@ -8,8 +8,10 @@ Created on Fri Nov 13 19:43:22 2020
 import numpy as np
 #from openbabel import openbabel
 from rdkit import Chem
-import AlignmentInfo
-import AtomGaussian
+from AlignmentInfo import AlignmentInfo
+from AtomGaussian import AtomGaussian, atomIntersection
+
+
 
 class GaussianVolume(AtomGaussian):
     
