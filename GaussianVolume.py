@@ -113,7 +113,7 @@ def Molecule_volume(gv = GaussianVolume):
     overlaps=[[] for i in range(N)] 
     
     atomIndex = 0
-    vecIndex = N #Used to indicated the position of the child gaussian
+    vecIndex = N #Used to indicated the initial position of the child gaussian
     
      # !!!this part need redefine after import RDkit or openbabel
     atom_position = np.random.random(size=(N, 3))*3
@@ -203,7 +203,7 @@ def Molecule_volume(gv = GaussianVolume):
                             if ga.n%2 ==0:# even number overlaps give positive contribution
                                 gv.volume = gv.volume - ga.volume
                                 gv.centroid = gv.centroid - ga.volume*ga.centre
-                            else:
+                            else:         # odd number overlaps give negative contribution
                                 gv.volume = gv.volume + ga.volume
                                 gv.centroid = gv.centroid + ga.volume*ga.centre
                             
@@ -237,9 +237,11 @@ def Molecule_volume(gv = GaussianVolume):
     return gv
 
 #%%
+    '''Build up the mass matrix'''
 def initOrientation(gv = GaussianVolume):
     mass_matrix = np.zeros(shape=(3,3))
     
+
     for i in gv.gaussians:
         i.centre -=gv.centroid
         if i.n % 2 == 0: # for even number of atom, negative contribution
@@ -250,7 +252,7 @@ def initOrientation(gv = GaussianVolume):
             mass_matrix[1][1] -= i.volume * i.centre[1] * i.centre[1]
             mass_matrix[1][2] -= i.volume * i.centre[1] * i.centre[2]
             mass_matrix[2][2] -= i.volume * i.centre[2] * i.centre[2]
-        else:
+        else:            # for odd number of atom, positive contribution
             mass_matrix[0][0] += i.volume * i.centre[0] * i.centre[0]
             mass_matrix[0][1] += i.volume * i.centre[0] * i.centre[1]
             mass_matrix[0][2] += i.volume * i.centre[0] * i.centre[2]
@@ -258,16 +260,18 @@ def initOrientation(gv = GaussianVolume):
             mass_matrix[1][2] += i.volume * i.centre[1] * i.centre[2]
             mass_matrix[2][2] += i.volume * i.centre[2] * i.centre[2]
         
-    # set lower triangle       	
+    # set lower triangle due to its sysmetry       	
     mass_matrix[1][0] = mass_matrix[0][1]
     mass_matrix[2][0] = mass_matrix[0][2]
     mass_matrix[2][1] = mass_matrix[1][2]
     
     #normalise
     mass_matrix /= gv.volume
-      
+    
+    #singular value decomposition
     gv.rotation, s, vh = np.linalg.svd(mass_matrix)
-        
+    
+    #project the atoms' coordinates onto the principle axes
     if np.linalg.det(gv.rotation) < 0:
         gv.rotation[:][2] = - gv.rotation[:][2]
         
@@ -282,8 +286,8 @@ def initOrientation(gv = GaussianVolume):
 def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
     processQueue=[] #Stores the pair of gaussians that needed to calculate overlap
     overlap_volume = 0
-    N1 = gRef.levels[0]
-    N2 = gDb.levels[0]
+    N1 = gRef.levels[0] #Reference molecule
+    N2 = gDb.levels[0] #Database molecule
     
     '''loop over the atoms in both molecules'''
     i=0
@@ -325,7 +329,7 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
         
         if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) > EPS:
                            
-            if (g_ij.n)%2 ==0:
+            if (g_ij.n)%2 ==0: 
                 
                 overlap_volume += V_ij
             else:
