@@ -37,6 +37,8 @@ def updateSolutionInfo(s = SolutionInfo, res = AlignmentInfo, score = 0, gv = Ga
 
 def setAllScores( res = SolutionInfo):
     
-    res.atomOverlap / (res.refAtomVolume + res.dbAtomVolume - res.atomOverlap
-        
-        
+    res.atomOverlap / (res.refAtomVolume + res.dbAtomVolume - res.atomOverlap)
+    
+    return
+                      
+    

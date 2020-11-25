@@ -15,28 +15,32 @@ from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo, setAllScores
 
 # write from main.cpp line 124, need to add molecule information from rdkit
-
-refVolume = GaussianVolume
+n = 5
+refVolume = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
+                 rotation=np.array([0.0, 0.0, 0.0]), N=n)
 
 # List all Gaussians and their respective intersections
 Molecule_volume(refVolume)
-
+#%%
 # 	Move the Gaussian towards its center of geometry and align with principal axes
 initOrientation(refVolume)
+#%%
 
 # dodge 132-136 , 146 - 172 read database, dodge all scoreonly process
 
 #Create a class to hold the best solution of an iteration
-bestSolution = SolutionInfo
+bestSolution = SolutionInfo()
 bestSolution.refAtomVolume = refVolume.overlap
 bestSolution.refCenter = refVolume.centroid
 bestSolution.refRotation = refVolume.rotation
 
 # Create the set of Gaussians of database molecule
-dbVolume = GaussianVolume
+
+dbVolume = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
+                 rotation=np.array([0.0, 0.0, 0.0]), N=n)
 Molecule_volume(dbVolume)
 
-res = AlignmentInfo
+res = AlignmentInfo()
 bestScore = 0.0
 
 initOrientation(dbVolume)
@@ -57,5 +61,34 @@ for l in range(0,4):
     if bestScore > 0.98:
         break
     # line 209
+
+if 20 > 0: #!!!
+    nextRes = aligner.simulatedAnnealing(res.rotor)
+    checkVolumes(refVolume, dbVolume, nextRes)
+    ss = getScore('name', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
+    if (ss > bestScore):
+        bestScore = ss
+        res = nextRes
+        
+updateSolutionInfo(bestSolution, res, bestScore, dbVolume)
+#bestSolution.dbMol = dbMol
+#bestSolution.dbName = dbName  # need to use rdkit
+
+if bestSolution.score > 0.8: #!!! the cutoff value
+    
+    '''post-process molecules'''
+    '''
+    # Translate and rotate the molecule towards its centroid and inertia axes
+    positionMolecule(bestSolution.dbMol, bestSolution.dbCenter, bestSolution.dbRotation)
+            
+   	# Rotate molecule with the optimal
+   	rotateMolecule(bestSolution.dbMol, bestSolution.rotor)
+   
+   	# Rotate and translate the molecule with the inverse rotation and translation of the reference molecule
+   	repositionMolecule(bestSolution.dbMol, refVolume.rotation, refVolume.centroid)'''
+       
+       
+
+    
         
 

@@ -11,8 +11,6 @@ from rdkit import Chem
 from AlignmentInfo import AlignmentInfo
 from AtomGaussian import AtomGaussian, atomIntersection
 
-
-
 class GaussianVolume(AtomGaussian):
     
     def __init__(self, volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
@@ -99,13 +97,14 @@ def GAlpha(atomicnumber): #returns the Alpha value of the atom
        0.616770720,
          }
         return switcher.get(atomicnumber,1.074661303) 
-#%%
-N=20  # !!!N would need to redefine inside the function Molecule_volume
+#%%'
+'''N=20  # !!!N would need to redefine inside the function Molecule_volume
 gv = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
-                 rotation=np.array([0.0, 0.0, 0.0]), N=N)
+                 rotation=np.array([0.0, 0.0, 0.0]), N=N)'''
 
 def Molecule_volume(gv = GaussianVolume):
     
+    N = gv.levels[0]
     # Stores the parents of gv.gaussians[i] inside parents[i]
     parents=[[] for i in range(N)]  
     
@@ -243,7 +242,7 @@ def initOrientation(gv = GaussianVolume):
     
 
     for i in gv.gaussians:
-        i.centre -=gv.centroid
+        i.centre -= gv.centroid
         if i.n % 2 == 0: # for even number of atom, negative contribution
         
             mass_matrix[0][0] -= i.volume * i.centre[0] * i.centre[0]
@@ -290,11 +289,10 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
     N2 = gDb.levels[0] #Database molecule
     
     '''loop over the atoms in both molecules'''
-    i=0
     EPS = 0.03
-    while i < N1:
-        j=0
-        while j < N2:
+    for i in range(0,N1):
+        for j in range(0,N2):
+            
            g_ij = atomIntersection(a = gRef.gaussians[i], b=gDb.gaussians[j])
            V_ij = g_ij.volume
            
@@ -316,14 +314,15 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
                    for it1 in d1:
                        processQueue.append([it1,j])
                       
-           j+=1
-
-        i+=1
     
     for pair in processQueue:
                
         i = pair[0]
         j = pair[1]
+        if i >= len(gRef.gaussians):
+            print('i_' +str(i)+'len_' + str(len(gRef.gaussians)))
+        if j >= len(gDb.gaussians):
+            print('j_' +str(j) +'len_' + str(len(gDb.gaussians)))
         g_ij = atomIntersection(a = gRef.gaussians[i], b=gDb.gaussians[j])
         V_ij = g_ij.volume
         
@@ -387,7 +386,7 @@ def checkVolumes(gRef = GaussianVolume, gDb = GaussianVolume,
     
     
 #%%
-gv =  Molecule_volume(gv)
+#gv =  Molecule_volume(gv)
 
 
             

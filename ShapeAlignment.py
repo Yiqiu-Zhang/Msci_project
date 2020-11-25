@@ -14,14 +14,14 @@ class ShapeAlignment(GaussianVolume):
     def __init__(self, gRef = GaussianVolume(),gDb = GaussianVolume()):
         
         self._gRef = gRef
-        self.gDb = gDb
+        self._gDb = gDb
         self._rAtom = gRef.levels[0]
         self._rGauss = len(gRef.gaussians)
         self._dAtom = gDb.levels[0]
         self._dGauss = len(gDb.gaussians)
         self._maxSize = self._rGauss * self._dGauss + 1
         self._maxIter = 50
-        self._matrixMap = [[] for i in range(0,self._rAtom) for j in range(0,self._dAtom)]
+        self._matrixMap = [[] for i in range(0,self._rGauss) for j in range(0,self._dGauss)]
         
     def gradientAscent(self, rotor):
         
@@ -64,6 +64,7 @@ class ShapeAlignment(GaussianVolume):
                     mapIndex = (i * self._dGauss) + j
                     
                     #Sub in the Aij to corresponding location, or calculate& sub in if empty initially
+                    
                     if len(self._matrixMap[mapIndex]) == 0:
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
@@ -243,7 +244,7 @@ class ShapeAlignment(GaussianVolume):
             
         return res
     
-    def simulatedAnnealing(self):
+    def simulatedAnnealing(self, rotor):
         
         rotor = np.zeros(4)
         processQueue=[] #create a queue to hold the pairs to process
@@ -278,8 +279,8 @@ class ShapeAlignment(GaussianVolume):
             T = np.sqrt((1.0 + iterations)/dTemperature)
             
             #create atom-atom overlaps 
-            for i in self._rAtom:
-                for j in self._dAtom:
+            for i in range(0,self._rAtom):
+                for j in range(0,self._dAtom):
                     
                     mapIndex = (i * self._dGauss) + j
                     
@@ -419,16 +420,15 @@ class ShapeAlignment(GaussianVolume):
                                
     def _updateMatrixMap(self, a= AtomGaussian, b = AtomGaussian):
         
-        #A is a matrix thatsolely depends on the position of the two centers of Gaussians a and b
+        #A is a matrix thatsolely depends on the position of the two centres of Gaussians a and b
         A = np.zeros(17)
         
-        d = (a.center - b.center)
-        s = (a.center + b.center)
-        d = 0 #The distance squared between two gaussians
-        d2 = sum(i**2 for i in d)
+        d = (a.centre - b.centre)
+        s = (a.centre + b.centre)
+        d2 = sum(i**2 for i in d) # The distance squared between two gaussians
         s2 = sum(i**2 for i in s)
     
-        C = a.alpha * b.alpha /(a.alpha + b.alpha)
+        weight = a.alpha * b.alpha /(a.alpha + b.alpha)
         
         A[0] = d2
         A[1] = d[1]*s[2] - d[2]*s[1]
@@ -447,12 +447,12 @@ class ShapeAlignment(GaussianVolume):
         A[14] = A[11]
         A[15] = s[0]**2 + s[1]**2 + d[2]**2
         
-        A = A*C
+        A = A*weight
         
         if (a.n + b.n %2) == 0:
-            A[16] = a.C * b.C * (np.pi/(a.alpha + b.alpha))**1.5
+            A[16] = a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
         else:
-            A[16] = - a.C * b.C * (np.pi/(a.alpha + b.alpha))**1.5
+            A[16] = - a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
             
         return A    
                     
