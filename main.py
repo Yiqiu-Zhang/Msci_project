@@ -9,7 +9,7 @@ import numpy as np
 #from openbabel import openbabel
 from rdkit import Chem
 from AlignmentInfo import AlignmentInfo
-from AtomGaussian import AtomGaussian, atomIntersection
+from AtomGaussian import  atomIntersection
 from GaussianVolume import GaussianVolume, Molecule_volume, Molecule_overlap, initOrientation, getScore, checkVolumes
 from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo, setAllScores

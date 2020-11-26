@@ -239,10 +239,13 @@ class ShapeAlignment(GaussianVolume):
             h = overGrad* temp
             
             #small scaling of the gradient
-            h = 1/h*(sum(i**2 for i in overGrad))
+            for i in range(0,len(h)):
+                if h[i] != 0:
+                    h[i] = 1/h[i] * (sum(i**2 for i in overGrad))
+                    
             overGrad *= h
             
-            #update rotor based on gradient information
+            # update rotor based on gradient information
             rotor -= overGrad
             
             #normalise rotor such that it has unit norm
