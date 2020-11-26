@@ -363,6 +363,7 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
 def getScore(name, Voa, Vra, Vda):
     
     if name == 'tanimoto':
+        #print('Voa_' + str(Voa) +'Vra_' + str(Vra) + 'Vda_' + str(Vda))
         return Voa/(Vra+Vda-Voa)
     elif name == 'tversky_ref':
         return Voa / (0.95*Vra + 0.05*Vda)

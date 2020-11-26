@@ -53,19 +53,20 @@ for l in range(0,4):
     
     nextRes = aligner.gradientAscent(quat)
     checkVolumes(refVolume, dbVolume, nextRes)
-    ss = getScore('no_name', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
-    
+    ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
+    #%%
     if ss > bestScore:
+        
         res = nextRes
         bestScore = ss
     if bestScore > 0.98:
         break
     # line 209
-
+#%%
 if 20 > 0: #!!!
     nextRes = aligner.simulatedAnnealing(res.rotor)
     checkVolumes(refVolume, dbVolume, nextRes)
-    ss = getScore('name', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
+    ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
     if (ss > bestScore):
         bestScore = ss
         res = nextRes

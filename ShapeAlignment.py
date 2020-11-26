@@ -54,8 +54,8 @@ class ShapeAlignment(GaussianVolume):
             pharmOverlap = 0
             iterations+=1
             
-            overGrad = 0
-            overHessian = 0
+            overGrad = np.zeros(4)
+            overHessian = np.zeros((4,4))
             
             xlambda = 0
             
@@ -69,10 +69,12 @@ class ShapeAlignment(GaussianVolume):
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
                         
+                        
                         self._matrixMap[mapIndex] = Aij
                         
                     else:
                         Aij = self._matrixMap[mapIndex]
+                    
                     
                     #Calculation of q′Aq, rotor product
                     Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
@@ -83,6 +85,7 @@ class ShapeAlignment(GaussianVolume):
                     qAq = rotor[0] * Aq[0] + rotor[1]*Aq[1] + rotor[2]*Aq[2] + rotor[3]*Aq[3]      
                     
                     #Volume overlap rewritten
+                    
                     Vij = Aij[16] * np.exp( -qAq )
                     
                     EPS = 0.03
@@ -122,8 +125,8 @@ class ShapeAlignment(GaussianVolume):
                             for it1 in d1:
                                 processQueue.append([it1,j])
                                 
-                            
-                                    
+                           
+                                   
             for item in processQueue:
                  
                 i = item[0]
@@ -134,7 +137,7 @@ class ShapeAlignment(GaussianVolume):
                 #Sub in the Aij to corresponding location, or calculate& sub in if empty initially 
                 if len(self._matrixMap[mapIndex]) == 0:
                         
-                    Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
+                    Aij = self._updateMatrixMap(a = self._gRef.gaussians[i], b = self._gDb.gaussians[j])
                     
                     self._matrixMap[mapIndex] = Aij
                     
@@ -150,10 +153,13 @@ class ShapeAlignment(GaussianVolume):
                 qAq = rotor[0] * Aq[0] + rotor[1]*Aq[1] + rotor[2]*Aq[2] + rotor[3]*Aq[3]      
                     
                 Vij = Aij[16] * np.exp( -qAq )
-                    
+                
+                
+                EPS = 0.03
                 if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) > EPS:
                     
                     atomOverlap += Vij
+                    
                     
                     v2 = 2.0 * Vij
                     xlambda -= v2 * qAq
@@ -189,6 +195,7 @@ class ShapeAlignment(GaussianVolume):
                                 processQueue.append([it1,j])
                       
             
+            
             #check if the new volume is better than the previously found one
             #if not quit the loop
             if iterations > 6 and atomOverlap < oldVolume + 0.0001:
@@ -202,10 +209,11 @@ class ShapeAlignment(GaussianVolume):
             
             #update solution 
             if oldVolume > res.overlap:
+                
                 res.overlap = atomOverlap
                 res.rotor = rotor
                 
-                if  res.overlap/(self.gRef.overlap + self.gDb.overlap - res.overlap)  > 0.99 :
+                if  res.overlap/(self._gRef.overlap + self._gDb.overlap - res.overlap)  > 0.99 :
                     
                     break
                     
@@ -418,7 +426,7 @@ class ShapeAlignment(GaussianVolume):
         self._maxIter = i
         return
                                
-    def _updateMatrixMap(self, a= AtomGaussian, b = AtomGaussian):
+    def _updateMatrixMap(self, a= AtomGaussian(), b = AtomGaussian()):
         
         #A is a matrix thatsolely depends on the position of the two centres of Gaussians a and b
         A = np.zeros(17)
@@ -449,11 +457,10 @@ class ShapeAlignment(GaussianVolume):
         
         A = A*weight
         
-        if (a.n + b.n %2) == 0:
-            A[16] = a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
+        if ((a.n + b.n) %2) == 0:
+            A[16] = a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5      
         else:
             A[16] = - a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
-            
         return A    
                     
                     
