@@ -2,7 +2,7 @@
 
 import numpy as np
 #from openbabel import openbabel
-from rdkit import Chem
+
 
 class AtomGaussian(): # give a system which incoulde the initial condition
     

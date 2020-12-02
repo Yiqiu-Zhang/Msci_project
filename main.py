@@ -15,12 +15,13 @@ from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo, setAllScores
 
 # write from main.cpp line 124, need to add molecule information from rdkit
-n = 5
-refVolume = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
-                 rotation=np.array([0.0, 0.0, 0.0]), N=n)
+#refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
+refMol = Chem.MolFromMolFile('GAR.mol')
+
+refVolume = GaussianVolume()
 
 # List all Gaussians and their respective intersections
-Molecule_volume(refVolume)
+Molecule_volume(refMol,refVolume)
 #%%
 # 	Move the Gaussian towards its center of geometry and align with principal axes
 initOrientation(refVolume)
@@ -36,9 +37,11 @@ bestSolution.refRotation = refVolume.rotation
 
 # Create the set of Gaussians of database molecule
 
-dbVolume = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
-                 rotation=np.array([0.0, 0.0, 0.0]), N=n)
-Molecule_volume(dbVolume)
+dbMol  = Chem.MolFromSmiles('O=C(CCl)N1Cc2ccccc2C(c2ccccc2)C1')
+dbMol = Chem.MolFromMolFile('AAR.mol')
+
+dbVolume = GaussianVolume()
+Molecule_volume(dbMol,dbVolume)
 
 res = AlignmentInfo()
 bestScore = 0.0

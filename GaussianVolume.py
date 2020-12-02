@@ -22,13 +22,13 @@ class GaussianVolume(AtomGaussian):
         self.rotation = rotation
         
         # Store the original atom gaussians and the overlap gaussians calculated later
-        self.gaussians = [AtomGaussian() for i in range(0,N)]
+        self.gaussians = []
         
         # store the overlap tree used for molecule molecule intersection
-        self.childOverlaps = [[] for i in range(N)] 
+        self.childOverlaps = [] 
         
         # Store the number of gaussians for each level
-        self.levels = [N]
+        self.levels = []
         
         #self.parents = []
         #self.processQueue = []
@@ -98,13 +98,19 @@ def GAlpha(atomicnumber): #returns the Alpha value of the atom
          }
         return switcher.get(atomicnumber,1.074661303) 
 #%%'
-'''N=20  # !!!N would need to redefine inside the function Molecule_volume
-gv = GaussianVolume(volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
-                 rotation=np.array([0.0, 0.0, 0.0]), N=N)'''
 
-def Molecule_volume(gv = GaussianVolume):
+def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume):
     
-    N = gv.levels[0]
+    N = 0
+    for atom in mol.GetAtoms():
+        #if atom.GetAtomicNum() != 1: # ignore hydrogen atom
+        N+=1
+        gv.childOverlaps.append([])
+        gv.gaussians.append(AtomGaussian())
+            
+    gv.levels.append(N)
+    gv.volume = 0.0
+    
     # Stores the parents of gv.gaussians[i] inside parents[i]
     parents=[[] for i in range(N)]  
     
@@ -114,20 +120,19 @@ def Molecule_volume(gv = GaussianVolume):
     atomIndex = 0
     vecIndex = N #Used to indicated the initial position of the child gaussian
     
-     # !!!this part need redefine after import RDkit or openbabel
-    atom_position = np.random.random(size=(N, 3))*3
-    radius_VDW = 0.8
-    alphavalue = 2.344/(radius_VDW**2)
     guassian_weight = 2.70
     
-    while atomIndex < N:
-        gv.gaussians[atomIndex].centre = atom_position[atomIndex,:]
-        gv.gaussians[atomIndex].alpha = alphavalue
+    AtomID = 0  
+    conf = mol.GetConformer()
+    for atom in mol.GetAtoms():
+        
+        gv.gaussians[atomIndex].centre = np.array(conf.GetAtomPosition(AtomID))
+        gv.gaussians[atomIndex].alpha = GAlpha(atom.GetAtomicNum())
         gv.gaussians[atomIndex].weight = guassian_weight 
-        gv.gaussians[atomIndex].volume = (4.0 * np.pi/3.0) * radius_VDW **3 # volume of the atom
+        radius_VDW = Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum())
+        gv.gaussians[atomIndex].volume = (4.0 * np.pi/3.0) * radius_VDW **3 
         gv.gaussians[atomIndex].n = 1 
-    
-     
+           
         '''Update volume and centroid of the Molecule'''
         gv.volume += gv.gaussians[atomIndex].volume
         gv.centroid += gv.gaussians[atomIndex].volume*gv.gaussians[atomIndex].centre
@@ -139,7 +144,7 @@ def Molecule_volume(gv = GaussianVolume):
             atom1 = gv.gaussians[i]
             atom2= gv.gaussians[atomIndex]
             
-            ga = atomIntersection(a = atom1, b=atom2)
+            ga = atomIntersection(a=atom1, b=atom2)
           
      
             EPS = 0.003
@@ -166,6 +171,7 @@ def Molecule_volume(gv = GaussianVolume):
             i+=1
             
         atomIndex += 1
+        AtomID +=1
         
     startLevel = N
     nextLevel = len(gv.gaussians)
