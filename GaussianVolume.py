@@ -29,10 +29,7 @@ class GaussianVolume(AtomGaussian):
         
         # Store the number of gaussians for each level
         self.levels = []
-        
-        #self.parents = []
-        #self.processQueue = []
-                    
+                
 def GAlpha(atomicnumber): #returns the Alpha value of the atom
     
         switcher={
@@ -234,7 +231,7 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume):
         level +=1
     
     gv.centroid/=gv.volume #normalise the centroid
-    gv.overlap, gv.processQueue = Molecule_overlap(gv,gv)
+    gv.overlap = Molecule_overlap(gv,gv)
     gv.parents = parents
     
 
@@ -321,7 +318,8 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
                        processQueue.append([it1,j])
                       
     
-    for pair in processQueue:
+    if processQueue: # processQueue is not empty
+        pair = processQueue.pop(0)
                
         i = pair[0]
         j = pair[1]
@@ -363,7 +361,7 @@ def Molecule_overlap(gRef = GaussianVolume, gDb = GaussianVolume):
                         if [it1,j] not in processQueue:
                             processQueue.append([it1,j])
 
-    return overlap_volume, processQueue
+    return overlap_volume
                     
 
 def getScore(name, Voa, Vra, Vda):

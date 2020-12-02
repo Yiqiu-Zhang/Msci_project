@@ -6,8 +6,8 @@ Created on Tue Nov 17 15:53:39 2020
 """
 import numpy as np
 from AlignmentInfo import AlignmentInfo
-from AtomGaussian import AtomGaussian, atomIntersection
-from GaussianVolume import GaussianVolume, Molecule_volume, Molecule_overlap, initOrientation, getScore, checkVolumes
+from AtomGaussian import AtomGaussian
+from GaussianVolume import GaussianVolume
 
 class ShapeAlignment(GaussianVolume):
     
@@ -41,7 +41,7 @@ class ShapeAlignment(GaussianVolume):
         overHessian = np.zeros((4,4))
         
         atomOverlap = 0
-        pharmOverlap = 0
+        # pharmOverlap = 0
         
         res = AlignmentInfo()
         
@@ -51,7 +51,7 @@ class ShapeAlignment(GaussianVolume):
         
         while iterations <20:
             atomOverlap = 0
-            pharmOverlap = 0
+            # pharmOverlap = 0
             iterations+=1
             
             overGrad = np.zeros(4)
@@ -126,11 +126,12 @@ class ShapeAlignment(GaussianVolume):
                                 processQueue.append([it1,j])
                                 
                            
-                                   
-            for item in processQueue:
+            
+            if processQueue: # processQueue is not empty
+                pair = processQueue.pop(0)               
                  
-                i = item[0]
-                j = item[1]
+                i = pair[0]
+                j = pair[1]
                  
                 mapIndex = (i*self._dGauss) + j
                 
@@ -274,7 +275,7 @@ class ShapeAlignment(GaussianVolume):
         res = AlignmentInfo()
         
         oldVolume = 0
-        bestVolume = 0
+        # bestVolume = 0
         iterations = 0
         sameCount = 0
         mapIndex = 0
@@ -283,7 +284,7 @@ class ShapeAlignment(GaussianVolume):
             
             #reset volume
             atomOverlap = 0
-            pharmOverlap = 0 
+            # pharmOverlap = 0 
             iterations += 1
             
             #temperature of the simulated annealing step
@@ -332,7 +333,8 @@ class ShapeAlignment(GaussianVolume):
                                 processQueue.append([it1,j])
                                 
                                 
-            for pair in processQueue:
+            if processQueue: # processQueue is not empty
+                pair = processQueue.pop(0)
                 
                 i = pair[0]
                 j = pair[1]
@@ -340,7 +342,7 @@ class ShapeAlignment(GaussianVolume):
                 mapIndex = (i * self._dGauss) + j
                 
                 #Sub in the Aij to corresponding location, or calculate& sub in if empty initially    
-                matIter = self._matrixMap[mapIndex]
+                # matIter = self._matrixMap[mapIndex]
                 if len(self._matrixMap[mapIndex]) == 0:
                         
                     Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
@@ -402,8 +404,8 @@ class ShapeAlignment(GaussianVolume):
                 oldRotor = rotor
                 
                 #update best found so far
-                bestRotor = rotor
-                bestVolume = overlapVol
+                # bestRotor = rotor
+                # bestVolume = overlapVol
                 sameCount = 0
                 
                 #check if it is better than the best solution found so far
@@ -437,7 +439,7 @@ class ShapeAlignment(GaussianVolume):
         d = (a.centre - b.centre)
         s = (a.centre + b.centre)
         d2 = sum(i**2 for i in d) # The distance squared between two gaussians
-        s2 = sum(i**2 for i in s)
+        # s2 = sum(i**2 for i in s)
     
         weight = a.alpha * b.alpha /(a.alpha + b.alpha)
         

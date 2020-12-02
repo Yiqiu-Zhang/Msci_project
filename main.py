@@ -9,10 +9,9 @@ import numpy as np
 #from openbabel import openbabel
 from rdkit import Chem
 from AlignmentInfo import AlignmentInfo
-from AtomGaussian import  atomIntersection
-from GaussianVolume import GaussianVolume, Molecule_volume, Molecule_overlap, initOrientation, getScore, checkVolumes
+from GaussianVolume import GaussianVolume, Molecule_volume, initOrientation, getScore, checkVolumes
 from ShapeAlignment import ShapeAlignment
-from SolutionInfo import SolutionInfo, updateSolutionInfo, setAllScores
+from SolutionInfo import SolutionInfo, updateSolutionInfo
 
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
@@ -37,7 +36,7 @@ bestSolution.refRotation = refVolume.rotation
 
 # Create the set of Gaussians of database molecule
 
-dbMol  = Chem.MolFromSmiles('O=C(CCl)N1Cc2ccccc2C(c2ccccc2)C1')
+#dbMol  = Chem.MolFromSmiles('O=C(CCl)N1Cc2ccccc2C(c2ccccc2)C1')
 dbMol = Chem.MolFromMolFile('AAR.mol')
 
 dbVolume = GaussianVolume()
