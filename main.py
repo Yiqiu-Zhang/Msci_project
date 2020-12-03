@@ -56,7 +56,7 @@ for l in range(0,4):
     nextRes = aligner.gradientAscent(quat)
     checkVolumes(refVolume, dbVolume, nextRes)
     ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
-    #%%
+    
     if ss > bestScore:
         
         res = nextRes

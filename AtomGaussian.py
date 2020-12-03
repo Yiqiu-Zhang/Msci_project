@@ -14,7 +14,7 @@ class AtomGaussian(): # give a system which incoulde the initial condition
         self.n = number # number of parents gaussians for this guassian function, 
                         # used for recording overlap gaussian information
 
-def atomIntersection(a = AtomGaussian,b = AtomGaussian):
+def atomIntersection(a = AtomGaussian(),b = AtomGaussian()):
     
     c = AtomGaussian()
     c.alpha = a.alpha + b.alpha
@@ -23,11 +23,9 @@ def atomIntersection(a = AtomGaussian,b = AtomGaussian):
     c.centre = (a.alpha * a.centre + b.alpha * b.centre)/c.alpha; 
     
     #intersection_volume
-    d = 0 #The distance squared between two gaussians
-    for i in a.centre - b.centre:
-        d+= i**2
-   
-    c.weight = a.weight * b.weight * np.exp(- a.alpha * b.alpha/c.alpha * d)  
+    d_sqr = sum((a.centre - b.centre)**2)  #The distance squared between two gaussians
+     
+    c.weight = a.weight * b.weight * np.exp(- a.alpha * b.alpha/c.alpha * d_sqr)  
     scale = np.pi/(c.alpha)
     c.volume = c.weight * scale ** (3/2)
     

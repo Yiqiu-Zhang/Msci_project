@@ -127,7 +127,7 @@ class ShapeAlignment(GaussianVolume):
                                 
                            
             
-            if processQueue: # processQueue is not empty
+            while len(processQueue) != 0: # processQueue is not empty
                 pair = processQueue.pop(0)               
                  
                 i = pair[0]
@@ -333,7 +333,7 @@ class ShapeAlignment(GaussianVolume):
                                 processQueue.append([it1,j])
                                 
                                 
-            if processQueue: # processQueue is not empty
+            while len(processQueue) != 0: # processQueue is not empty
                 pair = processQueue.pop(0)
                 
                 i = pair[0]
