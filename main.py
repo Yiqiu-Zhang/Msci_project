@@ -13,9 +13,11 @@ from GaussianVolume import GaussianVolume, Molecule_volume, initOrientation, get
 from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
 
+maxIter = 5
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
 refMol = Chem.MolFromMolFile('GAR.mol')
+#refMol = Chem.MolFromMolFile('sangetan.mol')
 
 refVolume = GaussianVolume()
 
@@ -38,17 +40,19 @@ bestSolution.refRotation = refVolume.rotation
 
 #dbMol  = Chem.MolFromSmiles('O=C(CCl)N1Cc2ccccc2C(c2ccccc2)C1')
 dbMol = Chem.MolFromMolFile('AAR.mol')
+#dbMol = Chem.MolFromMolFile('sangetan.mol')
 
 dbVolume = GaussianVolume()
 Molecule_volume(dbMol,dbVolume)
+#%%
 
 res = AlignmentInfo()
 bestScore = 0.0
 
 initOrientation(dbVolume)
 aligner = ShapeAlignment(refVolume,dbVolume)
-aligner.setMaxIterations(20) # !!!manully setted here
-
+aligner.setMaxIterations(maxIter) # !!!manully setted here
+aligner._maxIter
 for l in range(0,4):
     quat = np.zeros(4)
     quat[l] = 1.0
@@ -65,14 +69,14 @@ for l in range(0,4):
         break
     # line 209
 #%%
-if 20 > 0: #!!!
+if maxIter > 0: #!!!
     nextRes = aligner.simulatedAnnealing(res.rotor)
     checkVolumes(refVolume, dbVolume, nextRes)
     ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
     if (ss > bestScore):
         bestScore = ss
         res = nextRes
-        
+#%%  
 updateSolutionInfo(bestSolution, res, bestScore, dbVolume)
 #bestSolution.dbMol = dbMol
 #bestSolution.dbName = dbName  # need to use rdkit

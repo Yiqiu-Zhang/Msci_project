@@ -5,6 +5,8 @@ Created on Tue Nov 17 15:53:39 2020
 @author: THINKPAD
 """
 import numpy as np
+from collections import deque
+
 from AlignmentInfo import AlignmentInfo
 from AtomGaussian import AtomGaussian
 from GaussianVolume import GaussianVolume
@@ -20,13 +22,13 @@ class ShapeAlignment(GaussianVolume):
         self._dAtom = gDb.levels[0]
         self._dGauss = len(gDb.gaussians)
         self._maxSize = self._rGauss * self._dGauss + 1
-        self._maxIter = 50
+        self._maxIter = 15
         self._matrixMap = [[] for i in range(0,self._rGauss) for j in range(0,self._dGauss)]
         
     def gradientAscent(self, rotor):
         
         
-        processQueue=[]
+        processQueue= deque()
         
         Aij = 0
         Aq = np.zeros(4)
@@ -128,7 +130,7 @@ class ShapeAlignment(GaussianVolume):
                            
             
             while len(processQueue) != 0: # processQueue is not empty
-                pair = processQueue.pop(0)               
+                pair = processQueue.popleft()               
                  
                 i = pair[0]
                 j = pair[1]
@@ -259,7 +261,7 @@ class ShapeAlignment(GaussianVolume):
     def simulatedAnnealing(self, rotor):
         
         rotor = np.zeros(4)
-        processQueue=[] #create a queue to hold the pairs to process
+        processQueue= deque() #create a queue to hold the pairs to process
         
         Aij = 0
         Aq = np.zeros(4)
@@ -334,7 +336,7 @@ class ShapeAlignment(GaussianVolume):
                                 
                                 
             while len(processQueue) != 0: # processQueue is not empty
-                pair = processQueue.pop(0)
+                pair = processQueue.popleft()
                 
                 i = pair[0]
                 j = pair[1]
