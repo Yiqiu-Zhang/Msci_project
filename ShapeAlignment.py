@@ -10,6 +10,23 @@ from collections import deque
 from AlignmentInfo import AlignmentInfo
 from AtomGaussian import AtomGaussian
 from GaussianVolume import GaussianVolume
+import pandas as pd
+
+    
+def func_qAq1(Aij, rotor):
+    Aq = np.matmul(Aij, rotor)
+    qAq = np.matmul(rotor, Aq)
+
+    return Aq, qAq
+
+iu1 = np.triu_indices(4)
+def overH(v2, Aq, Aij, overHessian):
+                        
+    Aq1 = Aq[:,None]
+    outer = np.matmul(Aq1,Aq1.T)
+    overHessian[iu1] += v2 * (2.0 * outer[iu1]- Aij[iu1])
+    return
+'''14.2 µs ± 822 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)'''
 
 class ShapeAlignment(GaussianVolume):
     
@@ -23,18 +40,21 @@ class ShapeAlignment(GaussianVolume):
         self._dGauss = len(gDb.gaussians)
         self._maxSize = self._rGauss * self._dGauss + 1
         self._maxIter = 15
-        self._matrixMap = [[] for i in range(0,self._rGauss) for j in range(0,self._dGauss)]
+        #self._matrixMap = [[] for i in range(self._maxSize-1)]
+        self._matrixMap = np.nan * np.ndarray([self._maxSize-1,4,4])
+        #self._matrixMap = pd.Series(index = np.arange(self._maxSize-1),dtype = float)
+        self._map16 = np.empty(self._maxSize-1)
         
     def gradientAscent(self, rotor):
         
+        EPS = 0.03
+        processQueue = deque()
         
-        processQueue= deque()
+        #Aij = 0
+        #Aq = np.zeros(4)
         
-        Aij = 0
-        Aq = np.zeros(4)
-        
-        Vij = 0
-        qAq = 0
+        #Vij = 0
+        #qAq = 0
         
         d1 = []
         d2 = []
@@ -61,41 +81,42 @@ class ShapeAlignment(GaussianVolume):
             
             xlambda = 0
             
-            for i in range(0,self._rAtom):
-                for j in range(0,self._dAtom):
+            for i in range(self._rAtom):
+                for j in range(self._dAtom):
+                    
                     mapIndex = (i * self._dGauss) + j
-                    
-                    #Sub in the Aij to corresponding location, or calculate& sub in if empty initially
-                    
+                    #Aij = [self._updateMatrixMap1(self._gRef.gaussians[i], self._gDb.gaussians[j]) for i in range(self._rAtom) for j in range(self._dAtom)]
+                    Aij,A16 = self._updateMatrixMap1(self._gRef.gaussians[i], self._gDb.gaussians[j])
+                        
+                    self._matrixMap[mapIndex] = Aij
+                    self._map16[mapIndex] = A16
+                    '''
+                    #Sub in the Aij to corresponding location, or calculate& sub in if empty initially   
                     if len(self._matrixMap[mapIndex]) == 0:
                         
                         Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
                         
-                        
-                        self._matrixMap[mapIndex] = Aij
+                        self._matrixMap[mapIndex,:] = Aij
                         
                     else:
-                        Aij = self._matrixMap[mapIndex]
-                    
+                        Aij = self._matrixMap[mapIndex,:]
+                    '''
                     
                     #Calculation of q′Aq, rotor product
-                    Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
-                    Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
-                    Aq[2] =  Aij[8] * rotor[0] +  Aij[9] * rotor[1] + Aij[10] * rotor[2] + Aij[11] * rotor[3]
-                    Aq[3] = Aij[12] * rotor[0] + Aij[13] * rotor[1] + Aij[14] * rotor[2] + Aij[15] * rotor[3] 
-                        
-                    qAq = rotor[0] * Aq[0] + rotor[1]*Aq[1] + rotor[2]*Aq[2] + rotor[3]*Aq[3]      
                     
+                    
+                    Aq, qAq = func_qAq1(Aij, rotor)
+                   
                     #Volume overlap rewritten
                     
-                    Vij = Aij[16] * np.exp( -qAq )
+                    Vij = A16 * np.exp( -qAq )
                     
-                    EPS = 0.03
+                    
                     if  Vij/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - Vij ) > EPS:
                         
                         atomOverlap += Vij
                         
-                        v2 = 2.0 * Vij #simply Vij doubled, for lateral use
+                        v2 = 2.0 * Vij # simply Vij doubled, for lateral use
                         
                         #Lagrange coefficient lambda
                         xlambda -= v2 * qAq
@@ -104,18 +125,9 @@ class ShapeAlignment(GaussianVolume):
                         overGrad -= v2 * Aq
                         
                         # overHessian += 2*Vij(2*Aijq'qAij-Aij); (only upper triangular part)
-                        overHessian[0][0] += v2 * (2.0 * Aq[0]*Aq[0] - Aij[0])
-                        overHessian[0][1] += v2 * (2.0 * Aq[0]*Aq[1] - Aij[1])
-                        overHessian[0][2] += v2 * (2.0 * Aq[0]*Aq[2] - Aij[2])
-                        overHessian[0][3] += v2 * (2.0 * Aq[0]*Aq[3] - Aij[3])
-                        overHessian[1][1] += v2 * (2.0 * Aq[1]*Aq[1] - Aij[5])
-                        overHessian[1][2] += v2 * (2.0 * Aq[1]*Aq[2] - Aij[6])
-                        overHessian[1][3] += v2 * (2.0 * Aq[1]*Aq[3] - Aij[7])
-                        overHessian[2][2] += v2 * (2.0 * Aq[2]*Aq[2] - Aij[10])
-                        overHessian[2][3] += v2 * (2.0 * Aq[2]*Aq[3] - Aij[11])
-                        overHessian[3][3] += v2 * (2.0 * Aq[3]*Aq[3] - Aij[15])
-                        
-                        #loop over child nodes and add to queue
+                        overH(v2,Aq, Aij, overHessian)
+    
+                        # loop over child nodes and add to queue
                         d1 = self._gRef.childOverlaps[i]
                         d2 = self._gDb.childOverlaps[j]
                         
@@ -126,61 +138,59 @@ class ShapeAlignment(GaussianVolume):
                         if d1:
                             for it1 in d1:
                                 processQueue.append([it1,j])
-                                
-                           
-            
+                                                              
             while len(processQueue) != 0: # processQueue is not empty
                 pair = processQueue.popleft()               
                  
                 i = pair[0]
                 j = pair[1]
                  
-                mapIndex = (i*self._dGauss) + j
+                mapIndex = (i*self._dGauss) + j               
                 
                 #Sub in the Aij to corresponding location, or calculate& sub in if empty initially 
-                if len(self._matrixMap[mapIndex]) == 0:
-                        
-                    Aij = self._updateMatrixMap(a = self._gRef.gaussians[i], b = self._gDb.gaussians[j])
+                #if np.isnan(self._matrixMap[mapIndex]):
+                if np.isnan(self._matrixMap[mapIndex,0,0]):
+                    
+                    Aij,A16 = self._updateMatrixMap1(a = self._gRef.gaussians[i], b = self._gDb.gaussians[j])
                     
                     self._matrixMap[mapIndex] = Aij
+                    self._map16[mapIndex] = A16
                     
                 else:
                     Aij = self._matrixMap[mapIndex]
+                    A16 = self._map16[mapIndex]
                     
-                #rotor product        
-                Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
-                Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
-                Aq[2] =  Aij[8] * rotor[0] +  Aij[9] * rotor[1] + Aij[10] * rotor[2] + Aij[11] * rotor[3]
-                Aq[3] = Aij[12] * rotor[0] + Aij[13] * rotor[1] + Aij[14] * rotor[2] + Aij[15] * rotor[3] 
-                    
-                qAq = rotor[0] * Aq[0] + rotor[1]*Aq[1] + rotor[2]*Aq[2] + rotor[3]*Aq[3]      
-                    
-                Vij = Aij[16] * np.exp( -qAq )
+                Aq, qAq = func_qAq1(Aij, rotor)
+
+                #rotor product          
+                Vij = A16 * np.exp( -qAq )
                 
                 
-                EPS = 0.03
+                
                 if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) > EPS:
                     
                     atomOverlap += Vij
-                    
-                    
+         
                     v2 = 2.0 * Vij
                     xlambda -= v2 * qAq
                     
                     overGrad -= v2 * Aq
                     
                     # overHessian += 2*Vij(2*Aijq'qAij-Aij); (only upper triangular part)
-                    overHessian[0][0] += v2 * (2.0 * Aq[0]*Aq[0] - Aij[0])
-                    overHessian[0][1] += v2 * (2.0 * Aq[0]*Aq[1] - Aij[1])
-                    overHessian[0][2] += v2 * (2.0 * Aq[0]*Aq[2] - Aij[2])
-                    overHessian[0][3] += v2 * (2.0 * Aq[0]*Aq[3] - Aij[3])
-                    overHessian[1][1] += v2 * (2.0 * Aq[1]*Aq[1] - Aij[5])
-                    overHessian[1][2] += v2 * (2.0 * Aq[1]*Aq[2] - Aij[6])
-                    overHessian[1][3] += v2 * (2.0 * Aq[1]*Aq[3] - Aij[7])
-                    overHessian[2][2] += v2 * (2.0 * Aq[2]*Aq[2] - Aij[10])
-                    overHessian[2][3] += v2 * (2.0 * Aq[2]*Aq[3] - Aij[11])
-                    overHessian[3][3] += v2 * (2.0 * Aq[3]*Aq[3] - Aij[15])
+                    overH(v2,Aq, Aij, overHessian)
                     
+                    '''
+                    overHessian[0,0] += v2 * (2.0 * Aq[0]*Aq[0] - Aij[0,0])
+                    overHessian[0,1] += v2 * (2.0 * Aq[0]*Aq[1] - Aij[0,1])
+                    overHessian[0,2] += v2 * (2.0 * Aq[0]*Aq[2] - Aij[0,2])
+                    overHessian[0,3] += v2 * (2.0 * Aq[0]*Aq[3] - Aij[0,3])
+                    overHessian[1,1] += v2 * (2.0 * Aq[1]*Aq[1] - Aij[1,1])
+                    overHessian[1,2] += v2 * (2.0 * Aq[1]*Aq[2] - Aij[1,2])
+                    overHessian[1,3] += v2 * (2.0 * Aq[1]*Aq[3] - Aij[1,3])
+                    overHessian[2,2] += v2 * (2.0 * Aq[2]*Aq[2] - Aij[2,2])
+                    overHessian[2,3] += v2 * (2.0 * Aq[2]*Aq[3] - Aij[2,3])
+                    overHessian[3,3] += v2 * (2.0 * Aq[3]*Aq[3] - Aij[3,3])
+                    '''
                     #loop over child nodes and add to queue
                     d1 = self._gRef.childOverlaps[i]
                     d2 = self._gDb.childOverlaps[j]
@@ -231,28 +241,24 @@ class ShapeAlignment(GaussianVolume):
             overHessian[3][2] = overHessian[2][3]
             
             #update gradient to make h
-            overGrad[0] -= xlambda * rotor[0]
-            overGrad[1] -= xlambda * rotor[1]
-            overGrad[2] -= xlambda * rotor[2]
-            overGrad[3] -= xlambda * rotor[3]
+            overGrad -= xlambda * rotor
+
             
             #line 354
             #update gradient based on inverse hessian
-            temp = overHessian.dot(overGrad)
-            h = overGrad* temp
+            temp = np.matmul(overHessian,overGrad) #overHessian.dot(overGrad)
+            h = np.matmul(overGrad, temp)#overGrad* temp
             
             #small scaling of the gradient
-            for i in range(0,len(h)):
-                if h[i] != 0:
-                    h[i] = 1/h[i] * (sum(i**2 for i in overGrad))
-                    
+            
+            h = 1/h * np.matmul(overGrad,overGrad)
             overGrad *= h
             
             # update rotor based on gradient information
             rotor -= overGrad
             
             #normalise rotor such that it has unit norm
-            nr = np.sqrt(sum(i**2 for i in rotor))
+            nr = np.sqrt(np.matmul(rotor,rotor))
             
             rotor /= nr
             
@@ -260,6 +266,7 @@ class ShapeAlignment(GaussianVolume):
     
     def simulatedAnnealing(self, rotor):
         
+        EPS = 0.03
         rotor = np.zeros(4)
         processQueue= deque() #create a queue to hold the pairs to process
         
@@ -293,11 +300,16 @@ class ShapeAlignment(GaussianVolume):
             T = np.sqrt((1.0 + iterations)/dTemperature)
             
             #create atom-atom overlaps 
-            for i in range(0,self._rAtom):
-                for j in range(0,self._dAtom):
+            for i in range(self._rAtom):
+                for j in range(self._dAtom):
                     
                     mapIndex = (i * self._dGauss) + j
                     
+                    
+                    Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
+                        
+                    self._matrixMap[mapIndex,:] = Aij
+                    '''
                     #Sub in the Aij to corresponding location, or calculate& sub in if empty initially
                     if len(self._matrixMap[mapIndex]) == 0:
                         
@@ -307,7 +319,7 @@ class ShapeAlignment(GaussianVolume):
                         
                     else:
                         Aij = self._matrixMap[mapIndex]
-
+                    '''
                         
                     Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                     Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
@@ -318,7 +330,7 @@ class ShapeAlignment(GaussianVolume):
                         
                     Vij = Aij[16] * np.exp( -qAq )
                     
-                    EPS = 0.03
+                    
                     if  Vij/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - Vij ) > EPS:
                         
                         atomOverlap += Vij
@@ -343,16 +355,24 @@ class ShapeAlignment(GaussianVolume):
                 
                 mapIndex = (i * self._dGauss) + j
                 
+                if np.isnan(self._matrixMap[mapIndex,0]):
+                    
+                    Aij = self._updateMatrixMap(a = self._gRef.gaussians[i], b = self._gDb.gaussians[j])
+                    
+                    self._matrixMap[mapIndex,:] = Aij
+                    
+                else:
+                    Aij = self._matrixMap[mapIndex]
                 #Sub in the Aij to corresponding location, or calculate& sub in if empty initially    
                 # matIter = self._matrixMap[mapIndex]
-                if len(self._matrixMap[mapIndex]) == 0:
+                ''' if len(self._matrixMap[mapIndex]) == 0:
                         
                     Aij = self._updateMatrixMap(self._gRef.gaussians[i], self._gDb.gaussians[j])
                     
                     self._matrixMap[mapIndex] = Aij
                     
                 else:
-                    Aij = self._matrixMap[mapIndex]
+                    Aij = self._matrixMap[mapIndex]'''
                     
                 Aq[0] =  Aij[0] * rotor[0] +  Aij[1] * rotor[1] +  Aij[2] * rotor[2] +  Aij[3] * rotor[3]
                 Aq[1] =  Aij[4] * rotor[0] +  Aij[5] * rotor[1] +  Aij[6] * rotor[2] +  Aij[7] * rotor[3]
@@ -363,7 +383,6 @@ class ShapeAlignment(GaussianVolume):
                     
                 Vij = Aij[16] * np.exp( -qAq )
                 
-                EPS = 0.03
                 if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) > EPS:
                 
                     atomOverlap += Vij
@@ -423,7 +442,7 @@ class ShapeAlignment(GaussianVolume):
             rotor = oldRotor - ranPermutation + 2* ranPermutation*np.random.random()
             
             #normalise rotor such that it has unit norm
-            nr = np.sqrt(sum(i**2 for i in rotor))
+            nr = np.sqrt(sum(rotor**2 ))
             rotor /= nr
             
         return res
@@ -436,31 +455,33 @@ class ShapeAlignment(GaussianVolume):
     def _updateMatrixMap(self, a= AtomGaussian(), b = AtomGaussian()):
         
         #A is a matrix thatsolely depends on the position of the two centres of Gaussians a and b
-        A = np.zeros(17)
+        A = np.empty(17)
         
-        d = (a.centre - b.centre)
-        s = (a.centre + b.centre)
-        d2 = sum(i**2 for i in d) # The distance squared between two gaussians
-        # s2 = sum(i**2 for i in s)
+        dx, dy, dz = (a.centre - b.centre)
+        sx, sy, sz = (a.centre + b.centre)
+        dx2 = dx*dx
+        dy2 = dy*dy
+        dz2 = dz*dz
+        sx2 = sx*sx
+        sy2 = sy*sy
+        sz2 = sz*sz
+        
     
         weight = a.alpha * b.alpha /(a.alpha + b.alpha)
         
-        A[0] = d2
-        A[1] = d[1]*s[2] - d[2]*s[1]
-        A[2] = d[2]*s[0] - d[0]*s[2]
-        A[3] = d[0]*s[1] - d[1]*s[0]
+        A[0] = dx2 + dy2 + dz2
+        A[1] = dy*sz - dz*sy
+        A[8] = A[2] = dz*sx - dx*sz
+        A[12] = A[3] = dx*sy - dy*sx
         A[4] = A[1]
-        A[5] = d[0]**2 + s[1]**2 + s[2]**2
-        A[6] = d[0]*d[1] - s[0]*s[1]
-        A[7] = d[0]*d[2] - s[0]*s[2]
-        A[8] = A[2]
-        A[9] = A[6]
-        A[10] = s[0]**2 + d[1]**2 + s[2]**2
-        A[11] = d[1]*d[2] - s[1]*s[2]
-        A[12] = A[3]
-        A[13] = A[7]
-        A[14] = A[11]
-        A[15] = s[0]**2 + s[1]**2 + d[2]**2
+        A[5] = dx2 + sy2 + sz2
+        A[9] = A[6] = dx*dy - sx*sy
+        A[13] = A[7] = dx*dz - sx*sz
+       
+        A[10] = sx2 + dy2 + sz2
+        A[14] = A[11] = dy*dz - sy*sz
+               
+        A[15] = sx2 + sy2 + dz2
         
         A = A*weight
         
@@ -470,10 +491,50 @@ class ShapeAlignment(GaussianVolume):
             A[16] = - a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
         return A    
                     
+   
+
+    def _updateMatrixMap1(self, a= AtomGaussian(), b = AtomGaussian()):
+            
+            #A is a matrix thatsolely depends on the position of the two centres of Gaussians a and b
+            A = np.ndarray([4,4])  
+            
+            dx, dy, dz = (a.centre - b.centre)
+            sx, sy, sz = (a.centre + b.centre)
+            dx2 = dx*dx
+            dy2 = dy*dy
+            dz2 = dz*dz
+            sx2 = sx*sx
+            sy2 = sy*sy
+            sz2 = sz*sz
+            
+        
+            weight = a.alpha * b.alpha /(a.alpha + b.alpha)
+            
+            A[0,0] = dx2 + dy2 + dz2
+            A[1,0] = A[0,1] = dy*sz - dz*sy
+            A[2,0] = A[0,2] = dz*sx - dx*sz
+            A[3,0] = A[0,3] = dx*sy - dy*sx
+         
+            A[1,1] = dx2 + sy2 + sz2
+            A[2,1] = A[1,2] = dx*dy - sx*sy
+            A[3,1] = A[1,3] = dx*dz - sx*sz
+           
+            A[2,2] = sx2 + dy2 + sz2
+            A[3,2] = A[2,3] = dy*dz - sy*sz             
+            A[3,3] = sx2 + sy2 + dz2
+            
+            A *=weight
+            
+            scaling_C = 0
+            if ((a.n + b.n) %2) == 0:
+                scaling_C = a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5      
+            else:
+                scaling_C = - a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
+            return A ,scaling_C                  
                     
                     
-                    
-                
+def f(i,j):
+    return i,j             
                 
                     
                     

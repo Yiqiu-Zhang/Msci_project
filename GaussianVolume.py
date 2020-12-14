@@ -94,10 +94,33 @@ def GAlpha(atomicnumber): #returns the Alpha value of the atom
        0.616770720,
          }
         return switcher.get(atomicnumber,1.074661303) 
+    
+def Rvdw(atomicnumber): #returns the Alpha value of the atom
+    
+        switcher={
+   1: 1.10, 
+        
+   6: 1.70,
+   
+   7: 1.55,
+   
+   8: 1.52,#O 
+   
+   9: 1.47,
+   
+   15:1.80,
+   
+   16:1.80,
+   
+   17:1.75,
+  }
+        return switcher.get(atomicnumber,1)
+      
 #%%'
 
 def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     
+    EPS = 0.03
     N = 0
     for atom in mol.GetAtoms():
         
@@ -124,11 +147,15 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     conf = mol.GetConformer()
     for atom in mol.GetAtoms():
         
-        gv.gaussians[atomIndex].centre = np.array(conf.GetAtomPosition(AtomID))
+        gv.gaussians[atomIndex].centre = np.array(conf.GetAtomPosition(AtomID))#!!! not sure if it is 100% right
         gv.gaussians[atomIndex].alpha = GAlpha(atom.GetAtomicNum())
         gv.gaussians[atomIndex].weight = guassian_weight 
-        radius_VDW = Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum())
+        #radius_VDW = Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum())
+        radius_VDW = Rvdw(atom.GetAtomicNum())
+        '''it looks like the GetRvdw function in rdkit give 1.95 for Carbon, 
+        which is the vdw radius for Br in our paper, here I redefined the value'''
         gv.gaussians[atomIndex].volume = (4.0 * np.pi/3.0) * radius_VDW **3 
+    
         gv.gaussians[atomIndex].n = 1 
            
         '''Update volume and centroid of the Molecule'''
@@ -136,53 +163,44 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
         gv.centroid += gv.gaussians[atomIndex].volume*gv.gaussians[atomIndex].centre
         
         '''loop over every atom to find the second level overlap'''
-        i=0
-        while i < atomIndex:
-        
-            atom1 = gv.gaussians[i]
-            atom2= gv.gaussians[atomIndex]
-            
-            ga = atomIntersection(a=atom1, b=atom2)
-          
-     
-            EPS = 0.003
+      
+        for i in range(atomIndex):
+       
+            ga = atomIntersection(gv.gaussians[i], gv.gaussians[atomIndex])
+                 
             # Check if overlap is sufficient enough
-            if ga.volume / (gv.gaussians[i].volume + gv.gaussians[atomIndex].volume - ga.volume) > EPS:
+            if ga.volume / (gv.gaussians[i].volume + gv.gaussians[atomIndex].volume - ga.volume) >= EPS:
         
+                gv.gaussians.append(ga) 
+                gv.childOverlaps.append([]) 
+                
+                #append a empty list in the end to store child of this overlap gaussian
+                parents.append([i,atomIndex])
+                overlaps.append([])
+                
                 gv.volume -=  ga.volume
                 gv.centroid -=   ga.volume*ga.centre
                 
-                gv.gaussians.append(ga) 
-                
-                #append a empty list in the end to store child of this overlap gaussian
-                overlaps.append([])
-                
-                gv.childOverlaps.append([]) 
-                parents.append([i,atomIndex])
-                
+                overlaps[i].append(atomIndex)                  
                 # store the position of the child (vecIndex) in the root (i)   
                 gv.childOverlaps[i].append(vecIndex) 
-                
-                overlaps[i].append(atomIndex)    
+                  
                 vecIndex+=1
-            
-            i+=1
             
         atomIndex += 1
         AtomID +=1
         
-    startLevel = N
+    startLevel = atomIndex
     nextLevel = len(gv.gaussians)
     gv.levels.append(nextLevel)
         
-    level = 2
-    final_level = 7 
-
-    while level < final_level:
-        
-        i = startLevel
-        while i < nextLevel:
-            
+    
+    LEVEL = 7 #!!!
+    
+    for l in range(2,LEVEL):
+        for i in range(startLevel,nextLevel):
+ 
+           
             # parents[i] is a pair list e.g.[a1,a2]
             a1 = parents[i][0]
             a2 = parents[i][1]
@@ -195,14 +213,19 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
                 for elements in overlaps[i]:
                     
                     # check if there is a wrong index
-                    if elements >= a2:
-                        old_overlap = gv.gaussians[i]
-                        added_overlap = gv.gaussians[elements]
-                        ga = atomIntersection(old_overlap,added_overlap)
-                        
-                        EPS = 0.003
-                        if ga.volume / (old_overlap.volume + added_overlap.volume - ga.volume) > EPS:
-                        
+                    if elements > a2:
+                   
+                        ga = atomIntersection(gv.gaussians[i],gv.gaussians[elements])
+                     
+                        if ga.volume / (gv.gaussians[i].volume + gv.gaussians[elements].volume - ga.volume) >= EPS:
+                            
+                            gv.gaussians.append(ga)
+                            #append a empty list in the end to store child of this overlap gaussian
+                            gv.childOverlaps.append([]) 
+                            
+                            parents.append([i,elements])
+                            overlaps.append([])
+                            
                             if ga.n%2 ==0:# even number overlaps give positive contribution
                                 gv.volume -=  ga.volume
                                 gv.centroid -=   ga.volume*ga.centre
@@ -210,33 +233,18 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
                                 gv.volume +=  ga.volume
                                 gv.centroid +=  ga.volume*ga.centre
                             
-                            gv.gaussians.append(ga)
-                            
-                            #append a empty list in the end to store child of this overlap gaussian
-                            gv.childOverlaps.append([]) 
-                            
-                            parents.append([i,elements])
-                            overlaps.append([])
-                            
                             # store the position of the child (vecIndex) in the root (i)
                             gv.childOverlaps[i].append(vecIndex) 
                             
                             vecIndex+=1
-                        
-            i+=1
             
         startLevel = nextLevel
         nextLevel = len(gv.gaussians)
         gv.levels.append(nextLevel)
-        
-        level +=1
-    
-     
+ 
     gv.overlap = Molecule_overlap(gv,gv)
-    gv.parents = parents
-    
+    parents.clear()
 
-    
     return gv
 
 #%%
@@ -290,27 +298,27 @@ def initOrientation(gv = GaussianVolume()):
 def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
     processQueue= deque() #Stores the pair of gaussians that needed to calculate overlap
     overlap_volume = 0
+    
     N1 = gRef.levels[0] #Reference molecule
     N2 = gDb.levels[0] #Database molecule
     
     '''loop over the atoms in both molecules'''
     EPS = 0.03
-    for i in range(0,N1):
-        for j in range(0,N2):
+    for i in range(N1):
+        for j in range(N2):
             
             Cij = gRef.gaussians[i].alpha * gDb.gaussians[j].alpha / (gRef.gaussians[i].alpha + gDb.gaussians[j].alpha)
             			
             # Variables to store sum and difference of components
             d = (gRef.gaussians[i].centre - gDb.gaussians[j].centre)
-            d_sqr = sum(d**2)
-            #print(d_sqr)
+            d_sqr = d.dot(d)
+           
             # Compute overlap volume
-            V_ij = gRef.gaussians[i].weight * gDb.gaussians[j].weight * np.exp(- Cij * (d_sqr )) * (np.pi/(gRef.gaussians[i].alpha + gDb.gaussians[j].alpha))**1.5 
+            V_ij = gRef.gaussians[i].weight * gDb.gaussians[j].weight * (np.pi/(gRef.gaussians[i].alpha + gDb.gaussians[j].alpha))**1.5 * np.exp(- Cij * (d_sqr )) 
             #print('+ ' + str(V_ij))
-            if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) > EPS:
+            if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) >= EPS:
                 
                 overlap_volume += V_ij
-                
                 
                 # Loop over child nodes and add to queue
                 d1 = gRef.childOverlaps[i]
@@ -339,12 +347,12 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
             			
         # Variables to store sum and difference of components
         d = (gRef.gaussians[i].centre - gDb.gaussians[j].centre)
-        d_sqr = sum(d**2)
+        d_sqr = d.dot(d)
         			
         # Compute overlap volume
-        V_ij = gRef.gaussians[i].weight * gDb.gaussians[j].weight * np.exp(- Cij * (d_sqr )) * (np.pi/(gRef.gaussians[i].alpha + gDb.gaussians[j].alpha))**1.5 
+        V_ij = gRef.gaussians[i].weight * gDb.gaussians[j].weight * (np.pi/(gRef.gaussians[i].alpha + gDb.gaussians[j].alpha))**1.5 * np.exp(- Cij * (d_sqr )) 
       
-        if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) > EPS:
+        if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) >= EPS:
                            
             if (gRef.gaussians[i].n + gDb.gaussians[j].n)%2 ==0: 
                 
@@ -364,8 +372,7 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
                 for it1 in d1:
                     processQueue.append([it1,j])
                     
-            else:
-                
+            else: 
                 if d2:
                     # add (i,child(j))
                     for it1 in d2:
@@ -401,11 +408,6 @@ def checkVolumes(gRef = GaussianVolume, gDb = GaussianVolume,
         
     return 
 
-    
-    
-    
-#%%
-#gv =  Molecule_volume(gv)
 
 
             

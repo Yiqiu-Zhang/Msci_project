@@ -13,7 +13,7 @@ from GaussianVolume import GaussianVolume, Molecule_volume, initOrientation, get
 from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
 
-maxIter = 5
+maxIter = 0
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
 refMol = Chem.MolFromMolFile('GAR.mol')
