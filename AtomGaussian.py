@@ -6,12 +6,12 @@ import numpy as np
 
 class AtomGaussian(): # give a system which incoulde the initial condition
     
-    def __init__(self, centre= np.array([0.0, 0.0, 0.0]), alpha=0.0, volume=0, Gaussian_weight=2.7,number=0):
-        self.centre= centre
-        self.alpha = alpha  #Gaussion paprameter
-        self.volume = volume
-        self.weight = Gaussian_weight  
-        self.n = number # number of parents gaussians for this guassian function, 
+    def __init__(self):
+        self.centre= np.array([0.0, 0.0, 0.0])
+        self.alpha = 0.0  #Gaussion paprameter
+        self.volume = 0.0
+        self.weight = 2.7 
+        self.n = 0 # number of parents gaussians for this guassian function, 
                         # used for recording overlap gaussian information
 
 def atomIntersection(a = AtomGaussian(),b = AtomGaussian()):
@@ -27,8 +27,8 @@ def atomIntersection(a = AtomGaussian(),b = AtomGaussian()):
     d_sqr = d.dot(d)  #The distance squared between two gaussians
      
     c.weight = a.weight * b.weight * np.exp(- a.alpha * b.alpha/c.alpha * d_sqr)  
-    scale = np.pi/c.alpha
-    c.volume = c.weight * scale ** 1.5
+    
+    c.volume = c.weight * (np.pi/c.alpha) ** 1.5
     
     # Set the numer of atom of the overlap gaussian
     c.n = a.n + b.n

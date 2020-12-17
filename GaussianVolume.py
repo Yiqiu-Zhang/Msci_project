@@ -13,13 +13,12 @@ from AtomGaussian import AtomGaussian, atomIntersection
 
 class GaussianVolume(AtomGaussian):
     
-    def __init__(self, volume=0.0, overlap=0.0, centroid=np.array([0.0, 0.0, 0.0]), 
-                 rotation=np.array([0.0, 0.0, 0.0]), N=0):
+    def __init__(self):
         
-        self.volume = volume
-        self.overlap = overlap
-        self.centroid = centroid
-        self.rotation = rotation
+        self.volume = 0.0
+        self.overlap = 0.0
+        self.centroid = np.array([0.0, 0.0, 0.0])
+        self.rotation = np.array([0.0, 0.0, 0.0])
         
         # Store the original atom gaussians and the overlap gaussians calculated later
         self.gaussians = []
@@ -33,65 +32,45 @@ class GaussianVolume(AtomGaussian):
 def GAlpha(atomicnumber): #returns the Alpha value of the atom
     
         switcher={
-   1:      
-      1.679158285,
+   1: 1.679158285,
      
-   3:      
-      0.729980658,
+   3: 0.729980658,
      
-   5:      
-      0.604496983,
+   5: 0.604496983,
      
-   6:      
-      0.836674025,
+   6: 0.836674025,
      
-   7:      
-      1.006446589,
+   7: 1.006446589,
      
-   8:      
-      1.046566798,
+   8: 1.046566798,
      
-   9:      
-      1.118972618,
+   9: 1.118972618,
      
-   11:     
-      0.469247983,
+   11: 0.469247983,
      
-   12:     
-      0.807908026,
+   12: 0.807908026,
      
-   14:     
-      0.548296583,
+   14: 0.548296583,
      
-   15:
-      0.746292571,
+   15: 0.746292571,
     
-   16:     
-      0.746292571,
+   16: 0.746292571,
      
-   17:     
-      0.789547080,
+   17: 0.789547080,
      
-   19:     
-      0.319733941,
+   19: 0.319733941,
      
-   20:   	 
-      0.604496983,
+   20: 0.604496983,
      
-   26:   	 
-      1.998337133,
+   26: 1.998337133,
      
-   29:   	 
-      1.233667312,
+   29: 1.233667312,
      
-   30:   	 
-      1.251481772,
+   30: 1.251481772,
      
-   35:   	 
-      0.706497569,
+   35: 0.706497569,
      
-   53:   	 
-       0.616770720,
+   53: 0.616770720,
          }
         return switcher.get(atomicnumber,1.074661303) 
     
@@ -102,21 +81,21 @@ def Rvdw(atomicnumber): #returns the Alpha value of the atom
         
    6: 1.70,
    
-   7: 1.55,
+   7: 1.55, #1.65,
    
-   8: 1.52,#O 
+   8: 1.52, #1.6 ,#O 
    
-   9: 1.47,
+   9: 1.47, #1.3,
    
-   15:1.80,
+   15: 1.80, #1.9,
    
-   16:1.80,
+   16: 1.80, #,1.9
    
-   17:1.75,
+   17: 1.75,
   }
         return switcher.get(atomicnumber,1)
       
-#%%'
+#%%
 
 def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     
@@ -133,11 +112,12 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     gv.centroid = np.array([0.0, 0.0, 0.0])
     
     # Stores the parents of gv.gaussians[i] inside parents[i]
-    parents=[[] for i in range(N)]  
-    
+
+    parents = [[] for i in range(N)]
+
     # Stores the atom index that have intersection with i_th gaussians inside overlaps[i]
-    overlaps=[[] for i in range(N)] 
-    
+    overlaps = [set() for i in range(N)] #!!! the profile changes when change to [[]]*N ?????
+  
     atomIndex = 0
     vecIndex = N #Used to indicated the initial position of the child gaussian
     
@@ -176,12 +156,12 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
                 
                 #append a empty list in the end to store child of this overlap gaussian
                 parents.append([i,atomIndex])
-                overlaps.append([])
+                overlaps.append(set())
                 
                 gv.volume -=  ga.volume
                 gv.centroid -=   ga.volume*ga.centre
                 
-                overlaps[i].append(atomIndex)                  
+                overlaps[i].add(atomIndex)                  
                 # store the position of the child (vecIndex) in the root (i)   
                 gv.childOverlaps[i].append(vecIndex) 
                   
@@ -199,16 +179,14 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     
     for l in range(2,LEVEL):
         for i in range(startLevel,nextLevel):
- 
-           
+
             # parents[i] is a pair list e.g.[a1,a2]
             a1 = parents[i][0]
             a2 = parents[i][1]
             
             # find elements that overlaps with both gaussians(a1 and a2)
-            overlaps[i] = list(set(overlaps[a1]) & set(overlaps[a2]))
-            
-            
+            overlaps[i] = overlaps[a1] & overlaps[a2]
+               
             if len(overlaps[i]) != 0:
                 for elements in overlaps[i]:
                     
@@ -217,16 +195,16 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
                    
                         ga = atomIntersection(gv.gaussians[i],gv.gaussians[elements])
                      
-                        if ga.volume / (gv.gaussians[i].volume + gv.gaussians[elements].volume - ga.volume) >= EPS:
+                        if ga.volume/(gv.gaussians[i].volume + gv.gaussians[elements].volume - ga.volume) >= EPS:
                             
                             gv.gaussians.append(ga)
                             #append a empty list in the end to store child of this overlap gaussian
                             gv.childOverlaps.append([]) 
                             
                             parents.append([i,elements])
-                            overlaps.append([])
+                            overlaps.append(set())
                             
-                            if ga.n%2 ==0:# even number overlaps give positive contribution
+                            if ga.n % 2 ==0:# even number overlaps give positive contribution
                                 gv.volume -=  ga.volume
                                 gv.centroid -=   ga.volume*ga.centre
                             else:         # odd number overlaps give negative contribution
@@ -244,11 +222,11 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
  
     gv.overlap = Molecule_overlap(gv,gv)
     parents.clear()
+    overlaps.clear()
 
     return gv
-
 #%%
-    '''Build up the mass matrix'''
+'''Build up the mass matrix'''
 def initOrientation(gv = GaussianVolume()):
     mass_matrix = np.zeros(shape=(3,3))
     

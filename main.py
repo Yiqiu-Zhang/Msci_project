@@ -16,7 +16,7 @@ from SolutionInfo import SolutionInfo, updateSolutionInfo
 maxIter = 0
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
-refMol = Chem.MolFromMolFile('GAR.mol')
+refMol = Chem.MolFromMolFile('ALA.mol')
 #refMol = Chem.MolFromMolFile('sangetan.mol')
 
 refVolume = GaussianVolume()

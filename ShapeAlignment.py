@@ -19,12 +19,15 @@ def func_qAq1(Aij, rotor):
 
     return Aq, qAq
 
-iu1 = np.triu_indices(4)
+iu = np.triu_indices(4)
+il2 = np.tril_indices(4, k=-1)
+
+
 def overH(v2, Aq, Aij, overHessian):
                         
     Aq1 = Aq[:,None]
     outer = np.matmul(Aq1,Aq1.T)
-    overHessian[iu1] += v2 * (2.0 * outer[iu1]- Aij[iu1])
+    overHessian[iu] += v2 * (2.0 * outer[iu]- Aij[iu])
     return
 '''14.2 µs ± 822 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)'''
 
@@ -103,14 +106,10 @@ class ShapeAlignment(GaussianVolume):
                     '''
                     
                     #Calculation of q′Aq, rotor product
-                    
-                    
                     Aq, qAq = func_qAq1(Aij, rotor)
                    
                     #Volume overlap rewritten
-                    
-                    Vij = A16 * np.exp( -qAq )
-                    
+                    Vij = A16 * np.exp( -qAq )                  
                     
                     if  Vij/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - Vij ) > EPS:
                         
@@ -164,9 +163,7 @@ class ShapeAlignment(GaussianVolume):
 
                 #rotor product          
                 Vij = A16 * np.exp( -qAq )
-                
-                
-                
+
                 if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) > EPS:
                     
                     atomOverlap += Vij
@@ -179,18 +176,6 @@ class ShapeAlignment(GaussianVolume):
                     # overHessian += 2*Vij(2*Aijq'qAij-Aij); (only upper triangular part)
                     overH(v2,Aq, Aij, overHessian)
                     
-                    '''
-                    overHessian[0,0] += v2 * (2.0 * Aq[0]*Aq[0] - Aij[0,0])
-                    overHessian[0,1] += v2 * (2.0 * Aq[0]*Aq[1] - Aij[0,1])
-                    overHessian[0,2] += v2 * (2.0 * Aq[0]*Aq[2] - Aij[0,2])
-                    overHessian[0,3] += v2 * (2.0 * Aq[0]*Aq[3] - Aij[0,3])
-                    overHessian[1,1] += v2 * (2.0 * Aq[1]*Aq[1] - Aij[1,1])
-                    overHessian[1,2] += v2 * (2.0 * Aq[1]*Aq[2] - Aij[1,2])
-                    overHessian[1,3] += v2 * (2.0 * Aq[1]*Aq[3] - Aij[1,3])
-                    overHessian[2,2] += v2 * (2.0 * Aq[2]*Aq[2] - Aij[2,2])
-                    overHessian[2,3] += v2 * (2.0 * Aq[2]*Aq[3] - Aij[2,3])
-                    overHessian[3,3] += v2 * (2.0 * Aq[3]*Aq[3] - Aij[3,3])
-                    '''
                     #loop over child nodes and add to queue
                     d1 = self._gRef.childOverlaps[i]
                     d2 = self._gDb.childOverlaps[j]
@@ -233,22 +218,22 @@ class ShapeAlignment(GaussianVolume):
             overHessian -= xlambda #update the gradient and hessian 
             
             #fill lower triangular of the hessian matrix
+            overHessian[il2] = overHessian.T[il2]
+            '''
             overHessian[1][0] = overHessian[0][1]
             overHessian[2][0] = overHessian[0][2]
             overHessian[2][1] = overHessian[1][2]
             overHessian[3][0] = overHessian[0][3]
             overHessian[3][1] = overHessian[1][3]
             overHessian[3][2] = overHessian[2][3]
-            
+            '''
             #update gradient to make h
             overGrad -= xlambda * rotor
-
             
-            #line 354
             #update gradient based on inverse hessian
             temp = np.matmul(overHessian,overGrad) #overHessian.dot(overGrad)
             h = np.matmul(overGrad, temp)#overGrad* temp
-            
+            #h = np.einsum('i,ij,j',overGrad,overHessian,overGrad)
             #small scaling of the gradient
             
             h = 1/h * np.matmul(overGrad,overGrad)
