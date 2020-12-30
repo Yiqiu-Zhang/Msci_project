@@ -121,7 +121,7 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     atomIndex = 0
     vecIndex = N #Used to indicated the initial position of the child gaussian
     
-    guassian_weight = 2.70
+    guassian_weight = 2.7
     
     AtomID = 0  
     conf = mol.GetConformer()
@@ -131,11 +131,11 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
         gv.gaussians[atomIndex].alpha = GAlpha(atom.GetAtomicNum())
         gv.gaussians[atomIndex].weight = guassian_weight 
         #radius_VDW = Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum())
-        radius_VDW = Rvdw(atom.GetAtomicNum())
+        #radius_VDW = Rvdw(atom.GetAtomicNum())
         '''it looks like the GetRvdw function in rdkit give 1.95 for Carbon, 
         which is the vdw radius for Br in our paper, here I redefined the value'''
-        gv.gaussians[atomIndex].volume = (4.0 * np.pi/3.0) * radius_VDW **3 
-    
+        #gv.gaussians[atomIndex].volume = (4.0 * np.pi/3.0) * radius_VDW **3 
+        gv.gaussians[atomIndex].volume = (np.pi/gv.gaussians[atomIndex].alpha)**1.5 * gv.gaussians[atomIndex].weight
         gv.gaussians[atomIndex].n = 1 
            
         '''Update volume and centroid of the Molecule'''

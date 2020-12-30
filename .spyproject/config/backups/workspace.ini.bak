@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['GaussianVolume.py', 'ShapeAlignment.py', 'main.py', 'AlignmentInfo.py', 'SolutionInfo.py', 'test.py', '..\\..\\..\\..\\Downloads\\Msci_project-cad42c992f38d033ed6cc3b4f28193a7ceffd681\\Msci_project-cad42c992f38d033ed6cc3b4f28193a7ceffd681\\AtomGaussian_test.py']
+recent_files = ['main.py', 'AtomGaussian.py', 'ShapeAlignment.py', 'GaussianVolume.py', 'test.py', 'moleculeRotation.py', 'SolutionInfo.py', 'Data\\GAR.mol', 'Data\\AAR.mol']
 

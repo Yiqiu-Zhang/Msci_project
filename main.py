@@ -12,13 +12,22 @@ from AlignmentInfo import AlignmentInfo
 from GaussianVolume import GaussianVolume, Molecule_volume, initOrientation, getScore, checkVolumes
 from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
-
-maxIter = 0
+from rdkit.Chem import AllChem
+import moleculeRotation #import positionMolecule, repositionMolecule, rotateMolecule
+maxIter = 20
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
-refMol = Chem.MolFromMolFile('ALA.mol')
+#refMol = Chem.MolFromMolFile('GAR.mol')
 #refMol = Chem.MolFromMolFile('sangetan.mol')
 
+pre_refMol = Chem.MolFromSmiles('COc1ccc(-c2nc3c4ccccc4ccc3n2C(C)C)cc1')   
+#pre_refMol = Chem.MolFromMolFile('AAR.mol')
+pre_refMol_H=Chem.AddHs(pre_refMol)
+AllChem.EmbedMolecule(pre_refMol_H) 
+AllChem.MMFFOptimizeMolecule(pre_refMol_H)
+refMol = Chem.RemoveHs(pre_refMol_H)
+
+#%%
 refVolume = GaussianVolume()
 
 # List all Gaussians and their respective intersections
@@ -37,65 +46,87 @@ bestSolution.refCenter = refVolume.centroid
 bestSolution.refRotation = refVolume.rotation
 
 # Create the set of Gaussians of database molecule
+inf = open('DK+clean.sdf','rb')#
+fsuppl = Chem.ForwardSDMolSupplier(inf)
+Molcount = 0
+SolutionTable = []
+for dbMol in fsuppl:
+    if Molcount >= 10: continue
+    if dbMol is None: continue
 
-#dbMol  = Chem.MolFromSmiles('O=C(CCl)N1Cc2ccccc2C(c2ccccc2)C1')
-dbMol = Chem.MolFromMolFile('AAR.mol')
-#dbMol = Chem.MolFromMolFile('sangetan.mol')
-
-dbVolume = GaussianVolume()
-Molecule_volume(dbMol,dbVolume)
-#%%
-
-res = AlignmentInfo()
-bestScore = 0.0
-
-initOrientation(dbVolume)
-aligner = ShapeAlignment(refVolume,dbVolume)
-aligner.setMaxIterations(maxIter) # !!!manully setted here
-aligner._maxIter
-for l in range(0,4):
-    quat = np.zeros(4)
-    quat[l] = 1.0
+    dbName = dbMol.GetProp('zinc_id')
     
-    nextRes = aligner.gradientAscent(quat)
-    checkVolumes(refVolume, dbVolume, nextRes)
-    ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
+    Molcount+=1
+
+    #pre_dbMol = Chem.MolFromMolFile('GAR.mol')
+    #pre_dbMol_H=Chem.AddHs(pre_dbMol)
+    #AllChem.EmbedMolecule(pre_dbMol_H) 
+    #AllChem.MMFFOptimizeMolecule(pre_dbMol_H)
+    #dbMol = Chem.RemoveHs(pre_dbMol_H) 
+    #dbMol = Chem.MolFromMolFile('AAR.mol')
+    #dbMol = Chem.MolFromMolFile('sangetan.mol')
+
+    dbVolume = GaussianVolume()
+    Molecule_volume(dbMol,dbVolume)
     
-    if ss > bestScore:
+    res = AlignmentInfo()
+    bestScore = 0.0
+    
+    initOrientation(dbVolume)
+    aligner = ShapeAlignment(refVolume,dbVolume)
+    aligner.setMaxIterations(maxIter) # !!!manully setted here
+    aligner._maxIter
+    for l in range(0,4):
+        quat = np.zeros(4)
+        quat[l] = 1.0
         
-        res = nextRes
-        bestScore = ss
-    if bestScore > 0.98:
-        break
-    # line 209
-#%%
-if maxIter > 0: #!!!
-    nextRes = aligner.simulatedAnnealing(res.rotor)
-    checkVolumes(refVolume, dbVolume, nextRes)
-    ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
-    if (ss > bestScore):
-        bestScore = ss
-        res = nextRes
-#%%  
-updateSolutionInfo(bestSolution, res, bestScore, dbVolume)
-#bestSolution.dbMol = dbMol
-#bestSolution.dbName = dbName  # need to use rdkit
-
-if bestSolution.score > 0.8: #!!! the cutoff value
-    
-    '''post-process molecules'''
-    '''
-    # Translate and rotate the molecule towards its centroid and inertia axes
-    positionMolecule(bestSolution.dbMol, bestSolution.dbCenter, bestSolution.dbRotation)
+        nextRes = aligner.gradientAscent(quat)
+        checkVolumes(refVolume, dbVolume, nextRes)
+        ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
+        
+        if ss > bestScore:
             
-   	# Rotate molecule with the optimal
-   	rotateMolecule(bestSolution.dbMol, bestSolution.rotor)
-   
-   	# Rotate and translate the molecule with the inverse rotation and translation of the reference molecule
-   	repositionMolecule(bestSolution.dbMol, refVolume.rotation, refVolume.centroid)'''
-       
-       
+            res = nextRes
+            bestScore = ss
+                   
+        if bestScore > 0.98: # 
+            break
 
+    if maxIter > 0: #!!!
+        nextRes = aligner.simulatedAnnealing(res.rotor)
+        checkVolumes(refVolume, dbVolume, nextRes)
+        ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
+        if (ss > bestScore):
+            bestScore = ss
+            res = nextRes
+                 
+    updateSolutionInfo(bestSolution, res, bestScore, dbVolume)
+    bestSolution.dbMol = dbMol
+    bestSolution.dbName = dbName  # need to use rdkit
+    
+    if bestSolution.score > 0.7: #!!! the cutoff value
+        
+        '''post-process molecules'''
+        
+        # Translate and rotate the molecule towards its centroid and inertia axes
+        moleculeRotation.positionMolecule(bestSolution.dbMol, bestSolution.dbCenter, bestSolution.dbRotation)
+                
+       	# Rotate molecule with the optimal
+        moleculeRotation.rotateMolecule(bestSolution.dbMol, bestSolution.rotor)
+       
+       	# Rotate and translate the molecule with the inverse rotation and translation of the reference molecule
+        moleculeRotation.repositionMolecule(bestSolution.dbMol,refVolume.centroid, refVolume.rotation )
+           
+
+    SolutionTable.append([bestSolution.dbName,bestSolution.score])
+#%%
+imported_db =  Chem.MolToMolBlock(bestSolution.dbMol,confId=-1)    
+imported_ref = Chem.MolToMolBlock(refMol,confId=-1) 
+with open(r"C:\Users\THINKPAD\Desktop\Msci project\Msci_project_code\Msci_project\Data\db.mol", "w") as newfile:
+       newfile.write(imported_db)
+       
+with open(r"C:\Users\THINKPAD\Desktop\Msci project\Msci_project_code\Msci_project\Data\ref.mol", "w") as newfile:
+       newfile.write(imported_ref)
     
         
 
