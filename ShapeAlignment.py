@@ -188,33 +188,33 @@ class ShapeAlignment(GaussianVolume):
 
                 if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) < EPS: continue
                     
-                    atomOverlap += Vij
-         
-                    v2 = 2.0 * Vij
-                    xlambda -= v2 * qAq
-                    
-                    overGrad -= v2 * Aq
-                    
-                    # overHessian += 2*Vij(2*Aijq'qAij-Aij); (only upper triangular part)
-                    overH(v2,Aq, Aij, overHessian)
-                    
-                    #loop over child nodes and add to queue
-                    d1 = self._gRef.childOverlaps[i]
-                    d2 = self._gDb.childOverlaps[j]
-                    
-                    if d1 and self._gRef.gaussians[i].n >self._gDb.gaussians[j].n:
-                        for it1 in d1:
+                atomOverlap += Vij
+     
+                v2 = 2.0 * Vij
+                xlambda -= v2 * qAq
+                
+                overGrad -= v2 * Aq
+                
+                # overHessian += 2*Vij(2*Aijq'qAij-Aij); (only upper triangular part)
+                overH(v2,Aq, Aij, overHessian)
+                
+                #loop over child nodes and add to queue
+                d1 = self._gRef.childOverlaps[i]
+                d2 = self._gDb.childOverlaps[j]
+                
+                if d1 and self._gRef.gaussians[i].n >self._gDb.gaussians[j].n:
+                    for it1 in d1:
+                        processQueue.append([it1,j])
+                else:     
+                    if d2:
+                        for it1 in d2:
+                            processQueue.append([i,it1])
+                            
+                    if d1 and self._gDb.gaussians[j].n - self._gRef.gaussians[i].n <2:
+                        for it1 in d1:        
                             processQueue.append([it1,j])
-                    else:     
-                        if d2:
-                            for it1 in d2:
-                                processQueue.append([i,it1])
-                                
-                        if d1 and self._gDb.gaussians[j].n - self._gRef.gaussians[i].n <2:
-                            for it1 in d1:        
-                                processQueue.append([it1,j])
-                      
-            
+                  
+        
             
             #check if the new volume is better than the previously found one
             #if not quit the loop
@@ -253,8 +253,6 @@ class ShapeAlignment(GaussianVolume):
             overGrad -= xlambda * rotor
             
             #update gradient based on inverse hessian
-            
-                
             
             overGrad = Grad(overHessian,overGrad)
             
