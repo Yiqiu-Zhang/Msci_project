@@ -14,7 +14,7 @@ from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
 from rdkit.Chem import AllChem
 import moleculeRotation #import positionMolecule, repositionMolecule, rotateMolecule
-maxIter = 20
+maxIter = 0
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
 #refMol = Chem.MolFromMolFile('GAR.mol')
@@ -50,7 +50,8 @@ inf = open('DK+clean.sdf','rb')#
 fsuppl = Chem.ForwardSDMolSupplier(inf)
 Molcount = 0
 SolutionTable = []
-for dbMol in fsuppl:
+for dbMol in fsuppl: 
+    #if dbMol.GetProp('zinc_id') != 'ZINC000000017630': continue
     if Molcount >= 10: continue
     if dbMol is None: continue
 
