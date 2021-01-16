@@ -97,7 +97,7 @@ class ShapeAlignment(GaussianVolume):
             # pharmOverlap = 0
             iterations+=1
             
-            overGrad = np.zeros(4)
+            overGrad = np.zeros(4)#!!! C++ reset overGrad = 0,can you set a vector = a number? 
             overHessian = np.zeros((4,4))
             
             xlambda = 0
@@ -269,7 +269,6 @@ class ShapeAlignment(GaussianVolume):
     def simulatedAnnealing(self, rotor):
         
         EPS = 0.03
-        rotor = np.zeros(4)
         processQueue= deque() #create a queue to hold the pairs to process
         
         Aij = 0
@@ -286,7 +285,7 @@ class ShapeAlignment(GaussianVolume):
         res = AlignmentInfo()
         
         oldVolume = 0
-        # bestVolume = 0
+        bestVolume = 0
         iterations = 0
         sameCount = 0
         mapIndex = 0
@@ -324,20 +323,20 @@ class ShapeAlignment(GaussianVolume):
                     Vij = A16 * np.exp( -qAq )                  
  
                     
-                    if  Vij/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - Vij ) > EPS:
+                    if  Vij/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - Vij ) < EPS: continue
                         
-                        atomOverlap += Vij
-                        
-                        d1 = self._gRef.childOverlaps[i]
-                        d2 = self._gDb.childOverlaps[j]
-                        
-                        if d2:
-                            for it1 in d2:
-                                processQueue.append([i,it1])
-                        
-                        if d1:
-                            for it1 in d1:
-                                processQueue.append([it1,j])
+                    atomOverlap += Vij
+                    
+                    d1 = self._gRef.childOverlaps[i]
+                    d2 = self._gDb.childOverlaps[j]
+                    
+                    if d2:
+                        for it1 in d2:
+                            processQueue.append([i,it1])
+                    
+                    if d1:
+                        for it1 in d1:
+                            processQueue.append([it1,j])
                                 
                                 
             while len(processQueue) != 0: # processQueue is not empty
@@ -367,24 +366,24 @@ class ShapeAlignment(GaussianVolume):
                 Vij = A16 * np.exp( -qAq )
 
                 
-                if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) > EPS:
+                if  abs(Vij)/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - abs(Vij) ) < EPS: continue
                 
-                    atomOverlap += Vij
-                    
-                    d1 = self._gRef.childOverlaps[i]
-                    d2 = self._gDb.childOverlaps[j]
+                atomOverlap += Vij
                 
-                    if d1 and self._gRef.gaussians[i].n >self._gDb.gaussians[j].n:
-                        for it1 in d1:
+                d1 = self._gRef.childOverlaps[i]
+                d2 = self._gDb.childOverlaps[j]
+            
+                if d1 and self._gRef.gaussians[i].n >self._gDb.gaussians[j].n:
+                    for it1 in d1:
+                        processQueue.append([it1,j])
+                else:     
+                    if d2:
+                        for it1 in d2:
+                            processQueue.append([i,it1])
+                            
+                    if d1 and self._gDb.gaussians[j].n - self._gRef.gaussians[i].n <2:
+                        for it1 in d1:        
                             processQueue.append([it1,j])
-                    else:     
-                        if d2:
-                            for it1 in d2:
-                                processQueue.append([i,it1])
-                                
-                        if d1 and self._gDb.gaussians[j].n - self._gRef.gaussians[i].n <2:
-                            for it1 in d1:        
-                                processQueue.append([it1,j])
             
             overlapVol = atomOverlap
             
@@ -393,7 +392,7 @@ class ShapeAlignment(GaussianVolume):
                 
                 D = np.exp(-np.sqrt(oldVolume - overlapVol))/T
                 
-                if D > np.random.random():
+                if np.random.random() < D:
                     
                     oldRotor = rotor
                     oldVolume = overlapVol
@@ -409,8 +408,8 @@ class ShapeAlignment(GaussianVolume):
                 oldRotor = rotor
                 
                 #update best found so far
-                # bestRotor = rotor
-                # bestVolume = overlapVol
+                bestRotor = rotor
+                bestVolume = overlapVol
                 sameCount = 0
                 
                 #check if it is better than the best solution found so far
@@ -423,10 +422,10 @@ class ShapeAlignment(GaussianVolume):
                
             #make random permutation & double range = 0.05		
             ranPermutation = 0.1/T
-            rotor = oldRotor - ranPermutation + 2* ranPermutation*np.random.random()
+            rotor = oldRotor + np.random.uniform(-ranPermutation,ranPermutation)
             
             #normalise rotor such that it has unit norm
-            nr = np.sqrt(sum(rotor**2 ))
+            nr = np.sqrt(rotor.dot(rotor))
             rotor /= nr
             
         return res

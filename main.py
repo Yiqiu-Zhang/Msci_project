@@ -14,27 +14,30 @@ from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
 from rdkit.Chem import AllChem
 import moleculeRotation #import positionMolecule, repositionMolecule, rotateMolecule
-maxIter = 0
+maxIter = 10
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
-#refMol = Chem.MolFromMolFile('GAR.mol')
+refMol = Chem.MolFromMolFile('ref.mol')
 #refMol = Chem.MolFromMolFile('sangetan.mol')
 
-pre_refMol = Chem.MolFromSmiles('COc1ccc(-c2nc3c4ccccc4ccc3n2C(C)C)cc1')   
+#pre_refMol = Chem.MolFromSmiles('COc1ccc(-c2nc3c4ccccc4ccc3n2C(C)C)cc1')   
 #pre_refMol = Chem.MolFromMolFile('AAR.mol')
-pre_refMol_H=Chem.AddHs(pre_refMol)
-AllChem.EmbedMolecule(pre_refMol_H) 
-AllChem.MMFFOptimizeMolecule(pre_refMol_H)
-refMol = Chem.RemoveHs(pre_refMol_H)
+#pre_refMol_H=Chem.AddHs(pre_refMol)
+#AllChem.EmbedMolecule(pre_refMol_H) 
+#AllChem.MMFFOptimizeMolecule(pre_refMol_H)
+#refMol = Chem.RemoveHs(pre_refMol_H)
 
 #%%
 refVolume = GaussianVolume()
 
 # List all Gaussians and their respective intersections
 Molecule_volume(refMol,refVolume)
+print(refVolume.overlap)
 #%%
 # 	Move the Gaussian towards its center of geometry and align with principal axes
 initOrientation(refVolume)
+print(refVolume.overlap)
+
 #%%
 
 # dodge 132-136 , 146 - 172 read database, dodge all scoreonly process
@@ -52,7 +55,7 @@ Molcount = 0
 SolutionTable = []
 for dbMol in fsuppl: 
     #if dbMol.GetProp('zinc_id') != 'ZINC000000017630': continue
-    if Molcount >= 10: continue
+    if Molcount >= 100: continue
     if dbMol is None: continue
 
     dbName = dbMol.GetProp('zinc_id')
@@ -119,7 +122,7 @@ for dbMol in fsuppl:
         moleculeRotation.repositionMolecule(bestSolution.dbMol,refVolume.centroid, refVolume.rotation )
            
 
-    SolutionTable.append([bestSolution.dbName,bestSolution.score])
+    SolutionTable.append([bestSolution.dbName,bestSolution.score,bestSolution.atomOverlap,bestSolution.refAtomVolume,bestSolution.dbAtomVolume])
 #%%
 imported_db =  Chem.MolToMolBlock(bestSolution.dbMol,confId=-1)    
 imported_ref = Chem.MolToMolBlock(refMol,confId=-1) 
