@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-#from openbabel import openbabel
+from openbabel import openbabel
+
 
 
 class AtomGaussian(): # give a system which incoulde the initial condition
@@ -10,7 +11,7 @@ class AtomGaussian(): # give a system which incoulde the initial condition
         self.centre= np.array([0.0, 0.0, 0.0])
         self.alpha = 0.0  #Gaussion paprameter
         self.volume = 0.0
-        self.weight = 2.7 
+        self.weight = 2.828427125
         self.n = 0 # number of parents gaussians for this guassian function, 
                         # used for recording overlap gaussian information
 

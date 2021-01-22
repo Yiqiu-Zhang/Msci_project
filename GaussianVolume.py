@@ -81,15 +81,15 @@ def Rvdw(atomicnumber): #returns the Vdw radius of the atom
         
    6: 1.70,
    
-   7:1.55,  
+   7:1.550,  
    
-   8:1.52 ,  
+   8:1.520 ,  
    
    9:1.47,  
    
-   15:1.95,
+   15:1.800,
    
-   16:1.8,  
+   16:1.800,  
    
    17: 1.75,
   }
@@ -100,10 +100,13 @@ def Rvdw(atomicnumber): #returns the Vdw radius of the atom
 def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     
     EPS = 0.03
-    N = 0
-    for atom in mol.GetAtoms():
+    #N = 0
+    N = mol.GetNumAtoms()
+    #for atom in mol.GetAtoms():
         
-        N+=1
+    for i in range(N):
+        i +=1
+        #N+=1
         gv.childOverlaps.append([])
         gv.gaussians.append(AtomGaussian())
             
@@ -121,12 +124,15 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     atomIndex = 0
     vecIndex = N #Used to indicated the initial position of the child gaussian
     
-    guassian_weight = 2.7 #!!!
+    guassian_weight = 2.828427125 #!!!
+    #guassian_weight = 2.7
     
     AtomID = 0  
     conf = mol.GetConformer()
     for atom in mol.GetAtoms():
         
+        if atom.GetAtomicNum() == 1: continue    
+    
         gv.gaussians[atomIndex].centre = np.array(conf.GetAtomPosition(AtomID))#!!! not sure if it is 100% right
         gv.gaussians[atomIndex].alpha = GAlpha(atom.GetAtomicNum())
         gv.gaussians[atomIndex].weight = guassian_weight 
@@ -175,7 +181,7 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
     gv.levels.append(nextLevel)
         
     
-    LEVEL = 7 #!!!
+    LEVEL = 6 #!!!
     
     for l in range(2,LEVEL):
         for i in range(startLevel,nextLevel):
@@ -204,7 +210,7 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
                 parents.append([i,elements])
                 overlaps.append(set())
                 
-                if ga.n % 2 == 0:# even number overlaps give positive contribution
+                if (ga.n % 2) == 0:# even number overlaps give positive contribution
                     gv.volume -=  ga.volume
                     gv.centroid -=   ga.volume*ga.centre
                 else:         # odd number overlaps give negative contribution
@@ -220,10 +226,10 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
         nextLevel = len(gv.gaussians)
         gv.levels.append(nextLevel)
  
-    gv.overlap = Molecule_overlap(gv,gv)
-    parents.clear()
     overlaps.clear()#!!! why so complacated in C++ code?
-
+    parents.clear()
+    gv.overlap = Molecule_overlap(gv,gv)
+    
     return gv
 #%%
 '''Build up the mass matrix'''
@@ -316,7 +322,7 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
             d2 = gDb.childOverlaps[j]
            
             # First add (i,child(j))
-            if d2:
+            if d2 != None:
                 for it1 in d2:
                     processQueue.append([i,it1])
         
@@ -345,7 +351,7 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
       
         if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) < EPS: continue
                            
-        if (gRef.gaussians[i].n + gDb.gaussians[j].n)%2 ==0: 
+        if ((gRef.gaussians[i].n + gDb.gaussians[j].n)%2) ==0: 
             
             overlap_volume += V_ij
             #print('nbr  '+str(gRef.gaussians[i].n + gDb.gaussians[j].n)+ '  valume  '+str(V_ij))

@@ -14,7 +14,7 @@ from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
 from rdkit.Chem import AllChem
 import moleculeRotation #import positionMolecule, repositionMolecule, rotateMolecule
-maxIter = 10
+maxIter = 0
 # write from main.cpp line 124, need to add molecule information from rdkit
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
 refMol = Chem.MolFromMolFile('ref.mol')
@@ -27,11 +27,12 @@ refMol = Chem.MolFromMolFile('ref.mol')
 #AllChem.MMFFOptimizeMolecule(pre_refMol_H)
 #refMol = Chem.RemoveHs(pre_refMol_H)
 
-#%%
+
 refVolume = GaussianVolume()
 
 # List all Gaussians and their respective intersections
 Molecule_volume(refMol,refVolume)
+print(refVolume.volume)
 print(refVolume.overlap)
 #%%
 # 	Move the Gaussian towards its center of geometry and align with principal axes
@@ -52,7 +53,7 @@ bestSolution.refRotation = refVolume.rotation
 inf = open('DK+clean.sdf','rb')#
 fsuppl = Chem.ForwardSDMolSupplier(inf)
 Molcount = 0
-SolutionTable = []
+SolutionTable = np.zeros([101,4])
 for dbMol in fsuppl: 
     #if dbMol.GetProp('zinc_id') != 'ZINC000000017630': continue
     if Molcount >= 100: continue
@@ -122,7 +123,9 @@ for dbMol in fsuppl:
         moleculeRotation.repositionMolecule(bestSolution.dbMol,refVolume.centroid, refVolume.rotation )
            
 
-    SolutionTable.append([bestSolution.dbName,bestSolution.score,bestSolution.atomOverlap,bestSolution.refAtomVolume,bestSolution.dbAtomVolume])
+    SolutionTable[Molcount] = np.array([bestSolution.score,bestSolution.atomOverlap,bestSolution.refAtomVolume,bestSolution.dbAtomVolume])
+#%%
+np.savetxt("foo.csv", SolutionTable, delimiter=",")
 #%%
 imported_db =  Chem.MolToMolBlock(bestSolution.dbMol,confId=-1)    
 imported_ref = Chem.MolToMolBlock(refMol,confId=-1) 
