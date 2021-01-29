@@ -12,14 +12,13 @@ from AlignmentInfo import AlignmentInfo
 from GaussianVolume import GaussianVolume, Molecule_volume, initOrientation, getScore, checkVolumes
 from ShapeAlignment import ShapeAlignment
 from SolutionInfo import SolutionInfo, updateSolutionInfo
-from rdkit.Chem import AllChem
-import moleculeRotation #import positionMolecule, repositionMolecule, rotateMolecule
-maxIter = 0
-# write from main.cpp line 124, need to add molecule information from rdkit
-#refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
-refMol = Chem.MolFromMolFile('ref.mol')
-#refMol = Chem.MolFromMolFile('sangetan.mol')
 
+import moleculeRotation 
+maxIter = 0
+refMol = Chem.MolFromMolFile('ref.mol')
+
+#refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
+#refMol = Chem.MolFromMolFile('sangetan.mol')
 #pre_refMol = Chem.MolFromSmiles('COc1ccc(-c2nc3c4ccccc4ccc3n2C(C)C)cc1')   
 #pre_refMol = Chem.MolFromMolFile('AAR.mol')
 #pre_refMol_H=Chem.AddHs(pre_refMol)
@@ -27,21 +26,18 @@ refMol = Chem.MolFromMolFile('ref.mol')
 #AllChem.MMFFOptimizeMolecule(pre_refMol_H)
 #refMol = Chem.RemoveHs(pre_refMol_H)
 
-
 refVolume = GaussianVolume()
 
 # List all Gaussians and their respective intersections
 Molecule_volume(refMol,refVolume)
-print(refVolume.volume)
 print(refVolume.overlap)
-#%%
+
 # 	Move the Gaussian towards its center of geometry and align with principal axes
 initOrientation(refVolume)
-print(refVolume.overlap)
 
 #%%
 
-# dodge 132-136 , 146 - 172 read database, dodge all scoreonly process
+# dodge all scoreonly process
 
 #Create a class to hold the best solution of an iteration
 bestSolution = SolutionInfo()
@@ -53,23 +49,14 @@ bestSolution.refRotation = refVolume.rotation
 inf = open('DK+clean.sdf','rb')#
 fsuppl = Chem.ForwardSDMolSupplier(inf)
 Molcount = 0
-SolutionTable = np.zeros([101,4])
+SolutionTable = np.zeros([101,3])
 for dbMol in fsuppl: 
-    #if dbMol.GetProp('zinc_id') != 'ZINC000000017630': continue
-    if Molcount >= 100: continue
+    if Molcount >= 10: continue
     if dbMol is None: continue
 
     dbName = dbMol.GetProp('zinc_id')
     
     Molcount+=1
-
-    #pre_dbMol = Chem.MolFromMolFile('GAR.mol')
-    #pre_dbMol_H=Chem.AddHs(pre_dbMol)
-    #AllChem.EmbedMolecule(pre_dbMol_H) 
-    #AllChem.MMFFOptimizeMolecule(pre_dbMol_H)
-    #dbMol = Chem.RemoveHs(pre_dbMol_H) 
-    #dbMol = Chem.MolFromMolFile('AAR.mol')
-    #dbMol = Chem.MolFromMolFile('sangetan.mol')
 
     dbVolume = GaussianVolume()
     Molecule_volume(dbMol,dbVolume)
@@ -79,12 +66,12 @@ for dbMol in fsuppl:
     
     initOrientation(dbVolume)
     aligner = ShapeAlignment(refVolume,dbVolume)
-    aligner.setMaxIterations(maxIter) # !!!manully setted here
-    aligner._maxIter
-    for l in range(0,4):
+    aligner.setMaxIterations(maxIter) 
+    
+    for l in range(4):
+        
         quat = np.zeros(4)
         quat[l] = 1.0
-        
         nextRes = aligner.gradientAscent(quat)
         checkVolumes(refVolume, dbVolume, nextRes)
         ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
@@ -94,22 +81,25 @@ for dbMol in fsuppl:
             res = nextRes
             bestScore = ss
                    
-        if bestScore > 0.98: # 
-            break
+        if bestScore > 0.98:  continue
 
-    if maxIter > 0: #!!!
+
+    if maxIter > 0:
         nextRes = aligner.simulatedAnnealing(res.rotor)
         checkVolumes(refVolume, dbVolume, nextRes)
         ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
         if (ss > bestScore):
             bestScore = ss
             res = nextRes
+    dbVolume.gaussians.clear()
+    dbVolume.levels.clear()
+    dbVolume.childOverlaps.clear()
                  
     updateSolutionInfo(bestSolution, res, bestScore, dbVolume)
     bestSolution.dbMol = dbMol
-    bestSolution.dbName = dbName  # need to use rdkit
+    bestSolution.dbName = dbName  
     
-    if bestSolution.score > 0.7: #!!! the cutoff value
+    if bestSolution.score > 0.7: 
         
         '''post-process molecules'''
         
@@ -123,7 +113,7 @@ for dbMol in fsuppl:
         moleculeRotation.repositionMolecule(bestSolution.dbMol,refVolume.centroid, refVolume.rotation )
            
 
-    SolutionTable[Molcount] = np.array([bestSolution.score,bestSolution.atomOverlap,bestSolution.refAtomVolume,bestSolution.dbAtomVolume])
+    SolutionTable[Molcount] = np.array([bestSolution.score,bestSolution.atomOverlap,bestSolution.dbAtomVolume])
 #%%
 np.savetxt("foo.csv", SolutionTable, delimiter=",")
 #%%

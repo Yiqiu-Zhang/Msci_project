@@ -23,7 +23,7 @@ class SolutionInfo():
         self.atomOverlap = 0.0
         self.score = 0.0
         self.rotor = np.zeros((4))
-        self.rotor[0] = 1
+        self.rotor[0] = 1.0
         
 #%%
 def updateSolutionInfo(s = SolutionInfo, res = AlignmentInfo, score = 0, gv = GaussianVolume):
