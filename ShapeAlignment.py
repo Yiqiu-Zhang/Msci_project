@@ -41,7 +41,6 @@ def overH(v2, Aq, Aij, overHessian):
     return
 '''
 '''14.2 µs ± 822 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)'''
-
 iu = np.triu_indices(4)
 il2 = np.tril_indices(4, k=-1)
 class ShapeAlignment(GaussianVolume):
@@ -60,6 +59,8 @@ class ShapeAlignment(GaussianVolume):
         self._matrixMap = np.nan * np.ndarray([self._maxSize-1,4,4])
         #self._matrixMap = pd.Series(index = np.arange(self._maxSize-1),dtype = float)
         self._map16 = np.nan* np.empty(self._maxSize-1)
+        self._test1 = []
+        self._test2 = []
         
     def __del__(self): 
         self._gRef = None
@@ -116,18 +117,17 @@ class ShapeAlignment(GaussianVolume):
                     else:           
                         Aij = self._matrixMap[mapIndex] 
                         A16 = self._map16[mapIndex]
-                    
+                            
                     #Calculation of q′Aq, rotor product
                     Aq = np.matmul(Aij, rotor)
                     qAq = np.matmul(rotor, Aq)
-                    
+                                
                     #Volume overlap rewritten
                     Vij = A16 * np.exp( -qAq )                  
-                    
                     if  Vij/(self._gRef.gaussians[i].volume + self._gDb.gaussians[j].volume - Vij ) <EPS: continue
                         
                     atomOverlap += Vij
-                        
+        
                     v2 = 2.0 * Vij # simply Vij doubled, for lateral use
                         
                     #Lagrange coefficient lambda
@@ -151,7 +151,7 @@ class ShapeAlignment(GaussianVolume):
                     if d1 != None:
                         for it1 in d1:
                             processQueue.append([it1,j])
-                                                              
+                       
             while len(processQueue) != 0: # processQueue is not empty
                 pair = processQueue.popleft()               
                  
@@ -205,17 +205,15 @@ class ShapeAlignment(GaussianVolume):
                     if d1 != None and self._gDb.gaussians[j].n - self._gRef.gaussians[i].n <2:
                         for it1 in d1:        
                             processQueue.append([it1,j])
-                  
-        
-            
+                 
             #check if the new volume is better than the previously found one
             #if not quit the loop
-            if iterations > 6 and atomOverlap < oldVolume + 0.0001: continue
-                
+            if iterations > 6 and atomOverlap < oldVolume + 0.0001: break
+          
             oldVolume = atomOverlap #store latest volume found
             
             #no measurable overlap between two volumes
-            if np.isnan(xlambda) or np.isnan(oldVolume) or oldVolume == 0: continue
+            if np.isnan(xlambda) or np.isnan(oldVolume) or oldVolume == 0: break
             
             #update solution 
             if oldVolume > res.overlap:
@@ -223,7 +221,7 @@ class ShapeAlignment(GaussianVolume):
                 res.overlap = atomOverlap
                 res.rotor = rotor
                 
-                if  res.overlap/(self._gRef.overlap + self._gDb.overlap - res.overlap)  > 0.99 :continue
+                if  res.overlap/(self._gRef.overlap + self._gDb.overlap - res.overlap)  > 0.99 :break
                                         
             overHessian -= xlambda #update the gradient and hessian 
             
@@ -246,7 +244,7 @@ class ShapeAlignment(GaussianVolume):
             
             rotor /= nr
             
-        return res
+        return res, self._test1, self._test2
     
     def simulatedAnnealing(self, rotor):
         
@@ -418,50 +416,10 @@ class ShapeAlignment(GaussianVolume):
         
         self._maxIter = i
         return
-    '''                           
-    def _updateMatrixMap_old(self, a= AtomGaussian(), b = AtomGaussian()):
-        
-        #A is a matrix thatsolely depends on the position of the two centres of Gaussians a and b
-        A = np.empty(17)
-        
-        dx, dy, dz = (a.centre - b.centre)
-        sx, sy, sz = (a.centre + b.centre)
-        dx2 = dx*dx
-        dy2 = dy*dy
-        dz2 = dz*dz
-        sx2 = sx*sx
-        sy2 = sy*sy
-        sz2 = sz*sz
-        
     
-        weight = a.alpha * b.alpha /(a.alpha + b.alpha)
-        
-        A[0] = dx2 + dy2 + dz2
-        A[1] = dy*sz - dz*sy
-        A[8] = A[2] = dz*sx - dx*sz
-        A[12] = A[3] = dx*sy - dy*sx
-        A[4] = A[1]
-        A[5] = dx2 + sy2 + sz2
-        A[9] = A[6] = dx*dy - sx*sy
-        A[13] = A[7] = dx*dz - sx*sz
-       
-        A[10] = sx2 + dy2 + sz2
-        A[14] = A[11] = dy*dz - sy*sz
-               
-        A[15] = sx2 + sy2 + dz2
-        
-        A = A*weight
-        
-        if ((a.n + b.n) %2) == 0:
-            A[16] = a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5      
-        else:
-            A[16] = - a.weight * b.weight * (np.pi/(a.alpha + b.alpha))**1.5
-        return A    
-                    
-    '''
-
     def _updateMatrixMap(self, a= AtomGaussian(), b = AtomGaussian()):
-            
+            self._test1 = a
+            self._test2 = b
             #A is a matrix thatsolely depends on the position of the two centres of Gaussians a and b
             A = np.ndarray([4,4])  
             

@@ -17,6 +17,8 @@ import moleculeRotation
 maxIter = 0
 refMol = Chem.MolFromMolFile('ref.mol')
 
+MATRIXMAP = 0
+
 #refMol = Chem.MolFromSmiles('NS(=O)(=O)c1ccc(C(=O)N2Cc3ccccc3C(c3ccccc3)C2)cc1')
 #refMol = Chem.MolFromMolFile('sangetan.mol')
 #pre_refMol = Chem.MolFromSmiles('COc1ccc(-c2nc3c4ccccc4ccc3n2C(C)C)cc1')   
@@ -30,10 +32,9 @@ refVolume = GaussianVolume()
 
 # List all Gaussians and their respective intersections
 Molecule_volume(refMol,refVolume)
-print(refVolume.overlap)
 
 # 	Move the Gaussian towards its center of geometry and align with principal axes
-initOrientation(refVolume)
+#initOrientation(refVolume)
 
 #%%
 
@@ -51,13 +52,12 @@ fsuppl = Chem.ForwardSDMolSupplier(inf)
 Molcount = 0
 SolutionTable = np.zeros([101,3])
 for dbMol in fsuppl: 
-    if Molcount >= 10: continue
+    Molcount+=1
+    #if Molcount != 6: continue
     if dbMol is None: continue
 
     dbName = dbMol.GetProp('zinc_id')
     
-    Molcount+=1
-
     dbVolume = GaussianVolume()
     Molecule_volume(dbMol,dbVolume)
     
@@ -72,10 +72,10 @@ for dbMol in fsuppl:
         
         quat = np.zeros(4)
         quat[l] = 1.0
-        nextRes = aligner.gradientAscent(quat)
+        nextRes , test1, test2 = aligner.gradientAscent(quat)
         checkVolumes(refVolume, dbVolume, nextRes)
         ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
-        
+
         if ss > bestScore:
             
             res = nextRes
@@ -115,7 +115,14 @@ for dbMol in fsuppl:
 
     SolutionTable[Molcount] = np.array([bestSolution.score,bestSolution.atomOverlap,bestSolution.dbAtomVolume])
 #%%
+#test = []
+#for sublist in test1:
+    #test.append([item for item in sublist])
+
 np.savetxt("foo.csv", SolutionTable, delimiter=",")
+#np.savetxt("test1.csv", test1, delimiter=",")
+#np.savetxt("test2.txt", test2, delimiter=",",fmt='%1.6f')
+
 #%%
 imported_db =  Chem.MolToMolBlock(bestSolution.dbMol,confId=-1)    
 imported_ref = Chem.MolToMolBlock(refMol,confId=-1) 
@@ -125,5 +132,3 @@ with open(r"C:\Users\THINKPAD\Desktop\Msci project\Msci_project_code\Msci_projec
 with open(r"C:\Users\THINKPAD\Desktop\Msci project\Msci_project_code\Msci_project\Data\ref.mol", "w") as newfile:
        newfile.write(imported_ref)
     
-        
-

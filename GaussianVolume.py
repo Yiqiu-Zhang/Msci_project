@@ -108,7 +108,7 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
         
         if atom.GetAtomicNum() == 1: continue    
     
-        gv.gaussians[atomIndex].centre = np.array(conf.GetAtomPosition(atomIndex))#!!! value chacked, same with mol file
+        gv.gaussians[atomIndex].centre = np.array(conf.GetAtomPosition(atomIndex))# value chacked, same with mol file
         gv.gaussians[atomIndex].alpha = GAlpha(atom.GetAtomicNum())
         gv.gaussians[atomIndex].weight = guassian_weight 
         #radius_VDW = Chem.GetPeriodicTable().GetRvdw(atom.GetAtomicNum())
@@ -149,8 +149,8 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
             vecIndex+=1
             
         atomIndex += 1
-        
-   
+       
+
     
     startLevel = atomIndex
     nextLevel = len(gv.gaussians)
@@ -167,10 +167,12 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
             a2 = parents[i][1]
             
             # find elements that overlaps with both gaussians(a1 and a2)
-            overlaps[i] = overlaps[a1] | overlaps[a2]
-             # checked   
+            overlaps[i] = overlaps[a1] & overlaps[a2]
+ 
+
             if len(overlaps[i]) == 0: continue
             for elements in overlaps[i]:
+                
                 
                 # check if there is a wrong index
                 if elements <= a2: continue
@@ -197,12 +199,16 @@ def Molecule_volume(mol = Chem.rdchem.Mol(),  gv = GaussianVolume()):
                 gv.childOverlaps[i].append(vecIndex) 
                 
                 vecIndex+=1
-            
+        
+
+        
         startLevel = nextLevel
         nextLevel = len(gv.gaussians)
         gv.levels.append(nextLevel)
- 
+
+    
     overlaps.clear()#!!! why so complacated in C++ code?
+    
     parents.clear()
     gv.overlap = Molecule_overlap(gv,gv)
     
@@ -236,16 +242,21 @@ def initOrientation(gv = GaussianVolume()):
     #normalise
     mass_matrix /= gv.volume
     
-    #singular value decomposition
-    gv.rotation, s, vh = np.linalg.svd(mass_matrix)
+    #print('mass_matrix')
+    #print(mass_matrix)
     
+    #singular value decomposition
+    gv.rotation, s, vh = np.linalg.svd(mass_matrix, compute_uv=True, hermitian=False)
+    gv.rotation[:][2] = -gv.rotation[:][2]
+    gv.rotation[:][0] = -gv.rotation[:][0]
+  
     #project the atoms' coordinates onto the principle axes
     if np.linalg.det(gv.rotation) < 0:
         gv.rotation[:][2] = -gv.rotation[:][2]
         
     for i in gv.gaussians:
-        #i.centre = np.matmul(gv.rotation,i.centre)
-        gv.rotation.dot(i.centre)
+        i.centre = np.einsum('ij,i->j',gv.rotation,i.centre) #!!! not matrix multiplication
+        #i.centre = gv.rotation.dot(i.centre)
               
     return gv
 
@@ -272,7 +283,6 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
            
             # Compute overlap volume
             V_ij = gRef.gaussians[i].weight * gDb.gaussians[j].weight * (np.pi/(gRef.gaussians[i].alpha + gDb.gaussians[j].alpha))**1.5 * np.exp(- Cij * (d_sqr )) 
-            #print('+ ' + str(V_ij))
             if V_ij / (gRef.gaussians[i].volume + gDb.gaussians[j].volume - V_ij) < EPS: continue
                 
             overlap_volume += V_ij
@@ -290,7 +300,6 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
             if d1!= None:
                 for it1 in d1:
                     processQueue.append([it1,j])
-           
     
     while len(processQueue) != 0: # loop when processQueue is not empty
     
@@ -334,7 +343,7 @@ def Molecule_overlap(gRef = GaussianVolume(), gDb = GaussianVolume()):
                 # add (child(i),j)
                 for it1 in d1:           
                     processQueue.append([it1,j])
-
+                    
     return overlap_volume
                     
 def getScore(name, Voa, Vra, Vda):
