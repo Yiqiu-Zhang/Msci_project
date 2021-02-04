@@ -53,8 +53,8 @@ Molcount = 0
 SolutionTable = np.zeros([101,3])
 for dbMol in fsuppl: 
     Molcount+=1
-    #if Molcount != 6: continue
-    if dbMol is None: continue
+    #if Molcount != 1: continue
+    #if dbMol is None: continue
 
     dbName = dbMol.GetProp('zinc_id')
     
@@ -72,7 +72,7 @@ for dbMol in fsuppl:
         
         quat = np.zeros(4)
         quat[l] = 1.0
-        nextRes , test1, test2 = aligner.gradientAscent(quat)
+        nextRes = aligner.gradientAscent(quat)
         checkVolumes(refVolume, dbVolume, nextRes)
         ss = getScore('tanimoto', nextRes.overlap, refVolume.overlap, dbVolume.overlap)
 

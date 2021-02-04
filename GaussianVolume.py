@@ -247,12 +247,12 @@ def initOrientation(gv = GaussianVolume()):
     
     #singular value decomposition
     gv.rotation, s, vh = np.linalg.svd(mass_matrix, compute_uv=True, hermitian=False)
-    gv.rotation[:][2] = -gv.rotation[:][2]
-    gv.rotation[:][0] = -gv.rotation[:][0]
+    #gv.rotation[:,1] = -gv.rotation[:,1]
+    #gv.rotation[:,0] = -gv.rotation[:,0]
   
     #project the atoms' coordinates onto the principle axes
     if np.linalg.det(gv.rotation) < 0:
-        gv.rotation[:][2] = -gv.rotation[:][2]
+        gv.rotation[:,2] = -gv.rotation[:,2]
         
     for i in gv.gaussians:
         i.centre = np.einsum('ij,i->j',gv.rotation,i.centre) #!!! not matrix multiplication
